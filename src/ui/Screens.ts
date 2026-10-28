@@ -1,4 +1,6 @@
+import { WAVES } from '../config/waves';
 import type { RunStats } from '../core/World';
+import { catchUpScrap } from '../systems/waveRewards';
 import type { LevelId } from '../levels/types';
 import { el } from './dom';
 import { LevelSelect } from './LevelSelect';
@@ -11,24 +13,41 @@ export interface ScreenActions {
   onResume: () => void;
   /** Abandon the run from the pause screen. */
   onQuit: () => void;
+  /** Pick the wave a new run starts at (1-based). */
+  onStartWave: (wave: number) => void;
 }
 
 /** Full-screen overlays: title with battlefield picker, pause, victory/defeat. */
 export class Screens {
   private readonly title: HTMLElement;
   private readonly levelSelect: LevelSelect;
+  private readonly startWaveValue: HTMLElement;
+  private readonly startWaveNote: HTMLElement;
+  private startWave: number;
   private readonly end: HTMLElement;
   private readonly endTitle: HTMLElement;
   private readonly endLevel: HTMLElement;
   private readonly endStats: HTMLElement;
   private readonly pause: HTMLElement;
 
-  constructor(parent: HTMLElement, actions: ScreenActions, selectedLevel: LevelId) {
+  constructor(parent: HTMLElement, actions: ScreenActions, selectedLevel: LevelId, startWave: number) {
+    this.startWave = startWave;
     this.title = el('div', 'screen title-screen show', parent);
     const card = el('div', 'screen-card title-card', this.title);
     el('div', 'game-title', card, 'BULWARK');
     el('div', 'game-subtitle', card, 'Hold the last fortress against the swarm');
     this.levelSelect = new LevelSelect(card, selectedLevel, actions.onSelectLevel);
+
+    // Skip ahead: start at a harder wave with catch-up scrap.
+    const start = el('div', 'start-wave', card);
+    el('div', 'section-label', start, 'Starting wave');
+    const stepper = el('div', 'stepper', start);
+    el('button', 'step', stepper, '‹').addEventListener('click', () => actions.onStartWave(this.startWave - 1));
+    this.startWaveValue = el('span', 'step-value', stepper);
+    el('button', 'step', stepper, '›').addEventListener('click', () => actions.onStartWave(this.startWave + 1));
+    el('button', 'step step-wide', stepper, 'Boss').addEventListener('click', () => actions.onStartWave(WAVES.length));
+    this.startWaveNote = el('span', 'step-note', stepper);
+    this.setStartWave(startWave, catchUpScrap(startWave));
     el('button', 'primary', card, 'Deploy').addEventListener('click', () => actions.onStart());
 
     const how = el('div', 'howto', card);
@@ -73,6 +92,12 @@ export class Screens {
   showTitle(): void {
     this.hideAll();
     this.title.classList.add('show');
+  }
+
+  setStartWave(wave: number, catchUp: number): void {
+    this.startWave = wave;
+    this.startWaveValue.textContent = `${wave} / ${WAVES.length}`;
+    this.startWaveNote.textContent = wave > 1 ? `+${catchUp} scrap to catch up` : 'From the beginning';
   }
 
   setSelectedLevel(id: LevelId): void {

@@ -6,6 +6,8 @@ import { WAVES, type SpawnGroup } from '../config/waves';
 import { rand, TAU } from '../core/math';
 import type { World } from '../core/World';
 
+const EARLY_CALL_GRACE = 2;
+
 interface ActiveGroup {
   group: SpawnGroup;
   spawned: number;
@@ -22,6 +24,8 @@ export class WaveManager {
   index = -1;
   private groups: ActiveGroup[] = [];
   private running = false;
+  /** Seconds since the latest wave started. */
+  private sinceStart = 0;
 
   constructor(private readonly world: World) {}
 
@@ -46,18 +50,37 @@ export class WaveManager {
     return this.running && this.remainingToSpawn === 0 && this.world.enemies.count === 0;
   }
 
+  /**
+   * True while a wave is running and there is another one after it. A short grace period after
+   * each launch keeps a habitual second Enter press from calling the next wave by accident.
+   */
+  get canCallEarly(): boolean {
+    return this.running && !this.isFinalWave && this.sinceStart >= EARLY_CALL_GRACE;
+  }
+
+  /** Enemies alive plus those still to spawn. */
+  get threats(): number {
+    return this.world.enemies.count + this.remainingToSpawn;
+  }
+
+  /**
+   * Starts the next wave. Called during a running wave (early call), its groups stack on top of
+   * whatever is still spawning, so waves overlap.
+   */
   startNext(): void {
     this.index++;
     const wave = WAVES[this.index];
     const gates = this.world.level.def.gates;
-    this.groups = wave.groups.map((group) => {
+    const stillSpawning = this.groups.filter((g) => g.spawned < g.group.count);
+    this.groups = stillSpawning.concat(wave.groups.map((group) => {
       const angle = group.angle !== undefined ? THREE.MathUtils.degToRad(group.angle) : rand(0, TAU);
       if (ENEMIES[group.kind].flying) return { group, spawned: 0, timer: group.delay, angle, gate: -1 };
       // Ground groups enter through the gate closest to their intended approach.
       const gate = this.nearestGate(angle);
       return { group, spawned: 0, timer: group.delay, angle: THREE.MathUtils.degToRad(gates[gate].angle), gate };
-    });
+    }));
     this.running = true;
+    this.sinceStart = 0;
     this.world.events.emit('waveStarted', { wave: this.index + 1, total: WAVES.length });
   }
 
@@ -65,8 +88,15 @@ export class WaveManager {
     this.running = false;
   }
 
+  /** Jumps ahead before the run starts: the next launched wave will be `wave` (1-based). */
+  startFrom(wave: number): void {
+    this.reset();
+    this.index = wave - 2;
+  }
+
   update(dt: number): void {
     if (!this.running) return;
+    this.sinceStart += dt;
     for (const g of this.groups) {
       g.timer -= dt;
       while (g.timer <= 0 && g.spawned < g.group.count) {

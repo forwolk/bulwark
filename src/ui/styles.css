@@ -257,7 +257,18 @@ html, body {
 
 /* ---------- Core gun modes ---------- */
 .weapons { position: absolute; left: 18px; bottom: 104px; }
-.weapons-label { margin-bottom: 5px; }
+.weapons-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.auto-switch {
+  display: flex; align-items: center; gap: 6px; padding: 3px 6px; color: var(--text-dim);
+  background: var(--panel); border: 1px solid var(--panel-border); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.auto-switch:hover { border-color: var(--cyan); }
+.auto-key { font-family: var(--display); font-size: 11px; color: var(--amber); }
+.auto-track { position: relative; width: 28px; height: 14px; border-radius: 7px; background: rgba(255, 255, 255, 0.12); transition: background 0.15s; }
+.auto-knob { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--text-dim); transition: transform 0.15s, background 0.15s; }
+.auto-switch.on { color: var(--cyan); border-color: var(--cyan); }
+.auto-switch.on .auto-track { background: rgba(63, 216, 255, 0.45); }
+.auto-switch.on .auto-knob { transform: translateX(14px); background: #fff; box-shadow: 0 0 6px var(--cyan); }
 .weapons-row { display: flex; gap: 6px; }
 .weapon {
   position: relative; width: 78px; height: 58px; padding: 6px 7px; overflow: hidden; text-align: left;
@@ -272,3 +283,18 @@ html, body {
 .weapon-name { position: relative; font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
 .weapon.active { border-color: var(--cyan); background: rgba(63, 216, 255, 0.16); box-shadow: 0 0 14px rgba(63, 216, 255, 0.35) inset; }
 .weapon:hover .tooltip { opacity: 1; }
+
+/* ---------- Wave skipping ---------- */
+/* In combat the launch button becomes a quieter "call next wave early" button. */
+.launch.early { padding: 6px 18px; font-size: 14px; background: rgba(232, 163, 61, 0.85); animation: none; }
+.launch.early:hover { background: #ffc266; }
+.start-wave { margin-top: 16px; }
+.stepper { display: flex; align-items: center; gap: 6px; }
+.step {
+  min-width: 30px; height: 30px; padding: 0 8px; font-size: 18px; font-weight: 700; line-height: 1;
+  color: var(--text); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.step:hover { border-color: var(--cyan); color: var(--cyan); }
+.step-wide { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
+.step-value { min-width: 64px; text-align: center; font-family: var(--display); font-size: 16px; color: var(--cyan); }
+.step-note { margin-left: 6px; font-size: 13px; color: var(--amber); }

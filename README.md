@@ -10,6 +10,10 @@ There are three battlefields, picked on the title screen. Each has its own look 
 | **Sunscar Dunes**: pale desert flats walled in by sandstone mesas | 4 canyons | Quicksand pits |
 | **Mossgate Hollow**: grassy stone terraces with standing stones | 4 dirt ramps down from the rim | Ravines with a stream |
 
+### Skipping ahead
+- **Starting wave** (title screen): begin a run at any wave from 1 to 10. You get catch-up scrap of 80% of what the skipped waves would have paid (kills plus clear bonuses), computed from the wave tables in `systems/waveRewards.ts`. The choice is remembered.
+- **Call the next wave early** (Enter or the button during combat): the next wave starts on top of the current one. You're paid the current wave's clear bonus right away, plus 3 scrap per enemy still alive or to come. It's disabled for 2 s after each launch so a double-tap of Enter doesn't skip a wave.
+
 ### Core gun modes
 The core's main gun has four modes. Switching takes 0.7 s while the barrels swap, and you can't fire during it. Damage and fire-rate upgrades apply to every mode.
 
@@ -59,7 +63,7 @@ Requires Node 16+. Vite is pinned to v4 for Node 16 compatibility. Once you're o
 | Q W E R | Deploy a squad: Sentinels / Lancers / Rampart / Kestrels |
 | Shift + click | Keep placing the same structure |
 | X | Sell the hovered structure |
-| Enter | Launch next wave |
+| Enter | Launch next wave; during a wave, call the next one early |
 | Wheel · P · M | Zoom · pause · mute |
 
 ## Code layout

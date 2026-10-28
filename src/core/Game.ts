@@ -2,10 +2,13 @@ import * as THREE from 'three';
 import { ECONOMY } from '../config/balance';
 import { PALETTE as C } from '../config/palette';
 import { rand } from './math';
+import { WAVES } from '../config/waves';
 import type { Phase } from './events';
 import { loadLevelChoice, saveLevelChoice } from '../levels/selection';
 import type { LevelId } from '../levels/types';
+import { catchUpScrap, clearBonus, earlyCallBonus } from '../systems/waveRewards';
 import { UI } from '../ui/UI';
+import { loadPref, savePref } from './prefs';
 import { World } from './World';
 
 const MAX_FRAME = 1 / 20;
@@ -17,6 +20,8 @@ export class Game {
   private lastTime = performance.now();
   private timeScale = 1;
   private paused = false;
+  /** Wave a new run begins at (1-based); later starts come with catch-up scrap. */
+  private startWave = Number(loadPref<string>('startWave', '1', (v) => Number(v) >= 1 && Number(v) <= WAVES.length));
 
   constructor(viewport: HTMLElement, uiRoot: HTMLElement) {
     this.world = new World(viewport, loadLevelChoice());
@@ -27,7 +32,8 @@ export class Game {
       onMenu: () => this.ui.screens.showTitle(),
       onResume: () => this.setPaused(false),
       onQuit: () => this.quitToMenu(),
-    });
+      onStartWave: (wave: number) => this.setStartWave(wave),
+    }, this.startWave);
     requestAnimationFrame(this.frame);
   }
 
@@ -43,8 +49,22 @@ export class Game {
     world.sfx.click();
     world.reset();
     this.timeScale = 1;
+    if (this.startWave > 1) {
+      world.waves.startFrom(this.startWave);
+      world.economy.earn(catchUpScrap(this.startWave));
+    }
     this.setPhase('build');
-    this.ui.hud.showBanner(world.level.def.name, 'Build your defenses with 1–5, then launch the wave', 'info');
+    const sub = this.startWave > 1
+      ? `Starting at wave ${this.startWave}: spend your catch-up scrap, then launch`
+      : 'Build your defenses with 1–5, then launch the wave';
+    this.ui.hud.showBanner(world.level.def.name, sub, 'info');
+  }
+
+  private setStartWave(wave: number): void {
+    this.startWave = Math.min(WAVES.length, Math.max(1, wave));
+    savePref('startWave', String(this.startWave));
+    this.world.sfx.click();
+    this.ui.screens.setStartWave(this.startWave, catchUpScrap(this.startWave));
   }
 
   /** Swaps the battlefield behind the menu. Not allowed mid-run. */
@@ -72,10 +92,29 @@ export class Game {
 
   private launchWave(): void {
     const { world } = this;
+    if (world.phase === 'combat') {
+      this.callNextWaveEarly();
+      return;
+    }
     if (world.phase !== 'build') return;
     world.waves.startNext();
     world.sfx.waveStart();
     this.setPhase('combat');
+  }
+
+  /**
+   * Starts the next wave while the current one is still running. The current wave's clear bonus
+   * is paid now (it will never be "cleared" on its own), plus a bonus for every enemy still in play.
+   */
+  private callNextWaveEarly(): void {
+    const { world } = this;
+    const { waves } = world;
+    if (!waves.canCallEarly) return;
+    const bonus = clearBonus(waves.index + 1) + earlyCallBonus(waves.threats);
+    world.economy.earn(bonus);
+    waves.startNext();
+    world.sfx.waveStart();
+    world.events.emit('message', { text: `Wave called early: +${bonus} scrap`, tone: 'good' });
   }
 
   private waveCleared(): void {
@@ -86,7 +125,7 @@ export class Game {
       this.victory();
       return;
     }
-    const bonus = ECONOMY.waveBonusBase + ECONOMY.waveBonusPerWave * wave;
+    const bonus = clearBonus(wave);
     world.economy.earn(bonus);
     world.structures.repairAll(ECONOMY.interWaveRepair);
     world.squads.repairAll(ECONOMY.interWaveRepair);
@@ -150,7 +189,7 @@ export class Game {
     }
 
     if (!this.paused) {
-      if (world.phase === 'build' && (input.wasKeyPressed('Enter') || input.wasKeyPressed('NumpadEnter'))) this.launchWave();
+      if ((world.phase === 'build' || world.phase === 'combat') && (input.wasKeyPressed('Enter') || input.wasKeyPressed('NumpadEnter'))) this.launchWave();
       if (world.phase === 'combat' && world.waves.cleared) this.waveCleared();
       if (world.playing && !world.core.alive) this.defeat();
 

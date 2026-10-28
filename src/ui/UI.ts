@@ -21,7 +21,7 @@ export class UI {
   private readonly weaponSelector: WeaponSelector;
   private readonly overlay: WorldOverlay;
 
-  constructor(root: HTMLElement, private readonly world: World, actions: UIActions) {
+  constructor(root: HTMLElement, private readonly world: World, actions: UIActions, startWave: number) {
     // Buttons must never hold keyboard focus, or Enter/Space (launch wave, nova) would re-trigger them.
     root.addEventListener('mousedown', (e) => e.preventDefault());
     this.overlay = new WorldOverlay(root, world);
@@ -30,7 +30,7 @@ export class UI {
     this.upgrades = new UpgradePanel(root, world);
     this.squadBar = new SquadBar(root, world);
     this.weaponSelector = new WeaponSelector(root, world);
-    this.screens = new Screens(root, actions, world.level.def.id);
+    this.screens = new Screens(root, actions, world.level.def.id, startWave);
 
     world.events.on('phase', ({ phase }) => {
       const playing = phase === 'build' || phase === 'combat';
@@ -40,7 +40,8 @@ export class UI {
       this.squadBar.setVisible(playing);
       this.weaponSelector.setVisible(playing);
       if (playing) this.screens.hideAll();
-      if (phase === 'build' && world.waves.index < 0) this.overlay.clear();
+      // A fresh run (possibly starting at a later wave) clears leftover popups.
+      if (phase === 'build' && world.stats.time === 0) this.overlay.clear();
     });
     this.hud.setVisible(false);
     this.buildBar.setVisible(false);

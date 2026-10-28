@@ -1,5 +1,6 @@
 import type { World } from '../core/World';
 import type { MessageTone } from '../core/events';
+import { clearBonus, earlyCallBonus } from '../systems/waveRewards';
 import { el, setText } from './dom';
 
 /** Top status bar, centre banner, message feed, ability cooldowns, hint line and launch button. */
@@ -127,9 +128,13 @@ export class Hud {
     this.updateAbility(this.missileTile, weapons.missileReady);
     this.updateAbility(this.novaTile, weapons.novaReady);
 
-    const showLaunch = phase === 'build';
+    // Build phase: launch. Combat: call the next wave early for a bonus.
+    const early = phase === 'combat' && waves.canCallEarly;
+    const showLaunch = phase === 'build' || early;
     this.launch.classList.toggle('show', showLaunch);
-    if (showLaunch) setText(this.launch, `Launch wave ${waves.nextWaveNumber}  [Enter]`);
+    this.launch.classList.toggle('early', early);
+    if (phase === 'build') setText(this.launch, `Launch wave ${waves.nextWaveNumber}  [Enter]`);
+    else if (early) setText(this.launch, `Next wave ${waves.nextWaveNumber} ▸▸  +${clearBonus(waves.index + 1) + earlyCallBonus(waves.threats)}  [Enter]`);
 
     setText(this.hint, world.build.hint);
   }
