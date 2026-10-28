@@ -25,13 +25,5 @@ export const PALETTE = {
   arc: 0x8fb8ff,
   flak: 0xffd36b,
 
-  // Environment.
-  sand: 0x8b7d6d,
-  sandDark: 0x6a5d52,
-  rock: 0x4a4350,
-  rockLight: 0x6e6470,
-  crystal: 0xa26bff,
-  fog: 0x2a2236,
-  skyTop: 0x0d0f22,
-  skyHorizon: 0x7a3f4f,
+  // Environment colours live in each level's theme (src/levels/catalog.ts).
 } as const;

@@ -7,7 +7,7 @@ import type { Enemy } from '../entities/Enemy';
 import { Structure } from '../entities/Structure';
 import { updateTurret } from './TurretWeapons';
 
-export type PlacementError = 'range' | 'occupied' | 'funds' | null;
+export type PlacementError = 'range' | 'terrain' | 'occupied' | 'funds' | null;
 
 const cellKey = (x: number, z: number): string => `${Math.round(x / ARENA.gridSize)},${Math.round(z / ARENA.gridSize)}`;
 
@@ -29,6 +29,7 @@ export class StructureManager {
   placementError(kind: StructureKind, x: number, z: number): PlacementError {
     const r = Math.hypot(x, z);
     if (r < ARENA.buildMinRadius || r > ARENA.buildMaxRadius) return 'range';
+    if (!this.world.level.walkable(x, z)) return 'terrain';
     if (this.grid.has(cellKey(x, z))) return 'occupied';
     if (!this.world.economy.canAfford(STRUCTURES[kind].cost)) return 'funds';
     return null;

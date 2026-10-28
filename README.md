@@ -2,6 +2,16 @@
 
 A 3D low-poly sci-fi base-defense game in TypeScript + Three.js. You control a fortress cannon at the centre of the map, build turrets and barriers around it, and hold out through 10 waves ending in a boss.
 
+There are three battlefields, picked on the title screen. Each has its own look and layout:
+
+| Level | Ground units enter by | Hazard |
+| --- | --- | --- |
+| **Basalt Rift**: a hexagonal-basalt plateau over a violet-mist chasm | 3 column bridges | The chasm |
+| **Saltglass Expanse**: cracked salt flats ringed by striped mesas | 4 canyons | Brine sinkholes |
+| **Hollowmere Crater**: a terraced crater of slate, moss and crystal | 4 ramps down from the rim | Glowing fissures |
+
+Mortar shells, missiles and the nova pulse knock enemies back. An enemy shoved into a hazard is lost, and you still get its scrap. Flyers ignore terrain.
+
 All art, effects and audio are generated in code. There are no asset files.
 
 ## Run
@@ -39,7 +49,10 @@ src/
   render/     Renderer (HDR + bloom), CameraRig, ModelBuilder, procedural models/
   vfx/        Instanced low-poly particles, glow sprites, light flashes, scorch decals,
               and Effects (named recipes like explosion, shockwave, lightning)
-  world/      Terrain heightfield, decor scattering, lighting, build-zone overlay
+  levels/     Level catalog (themes, gates), runtime Level, NavGrid + FlowField pathfinding,
+              and one Biome per battlefield (height, hazards, colouring, set dressing)
+  world/      Terrain mesh builder, ambient motes, mist and sky-reflection features,
+              lighting rig + build-zone overlay (Arena)
   audio/      WebAudio-synthesized sound effects
   ui/         DOM HUD, build bar, upgrade shop, world-anchored overlays, screens
 ```
@@ -48,6 +61,12 @@ Tuning the game usually only touches `src/config/`. To add an enemy:
 1. Add an entry to `config/enemies.ts`.
 2. Add a model factory to `render/models/EnemyModels.ts`.
 3. Use the enemy in `config/waves.ts`.
+
+To add a level:
+1. Write a `Biome` in `levels/biomes/`. It provides height, hazard zones, face colours and a `decorate()` pass that can block cells and register animations.
+2. Add a `LevelDef` to `levels/catalog.ts` with a theme (lights, fog, motes, dust) and the gates where ground units enter.
+
+The nav grid and flow field are built from the biome automatically. In dev builds, a gate with no path to the core logs a warning.
 
 ### Rendering notes
 - Models are built from primitives by `ModelBuilder` and merged into one lit mesh and one glow mesh per part. Colour is stored per vertex, so the whole game uses a handful of shared materials.

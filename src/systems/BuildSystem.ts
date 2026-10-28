@@ -9,6 +9,7 @@ import { StructureManager, type PlacementError } from './StructureManager';
 
 const ERROR_TEXT: Record<Exclude<PlacementError, null>, string> = {
   range: 'Outside the build zone',
+  terrain: 'Blocked by terrain',
   occupied: 'Cell occupied',
   funds: 'Not enough scrap',
 };

@@ -70,7 +70,8 @@ export class WorldOverlay {
       for (const e of enemies.all) {
         if (!e.def.showHealthBar || e.hp >= e.def.hp) continue;
         const big = e.def.kind === 'leviathan';
-        tmp.set(e.position.x, e.def.radius * (big ? 2.4 : 2) + 1, e.position.z);
+        const base = e.flying ? e.position.y - e.def.altitude : e.position.y;
+        tmp.set(e.position.x, base + e.def.radius * (big ? 2.4 : 2) + 1, e.position.z);
         if (this.placeBar(used, tmp, e.hp / e.def.hp, big ? 180 : 56, true)) used++;
       }
     }

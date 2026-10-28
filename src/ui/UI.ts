@@ -1,12 +1,11 @@
 import type { World } from '../core/World';
 import { BuildBar } from './BuildBar';
 import { Hud } from './Hud';
-import { Screens } from './Screens';
+import { Screens, type ScreenActions } from './Screens';
 import { UpgradePanel } from './UpgradePanel';
 import { WorldOverlay } from './WorldOverlay';
 
-export interface UIActions {
-  onStart: () => void;
+export interface UIActions extends ScreenActions {
   onLaunch: () => void;
 }
 
@@ -25,7 +24,7 @@ export class UI {
     this.hud = new Hud(root, world, actions.onLaunch);
     this.buildBar = new BuildBar(root, world);
     this.upgrades = new UpgradePanel(root, world);
-    this.screens = new Screens(root, actions.onStart);
+    this.screens = new Screens(root, actions, world.level.def.id);
 
     world.events.on('phase', ({ phase }) => {
       const playing = phase === 'build' || phase === 'combat';

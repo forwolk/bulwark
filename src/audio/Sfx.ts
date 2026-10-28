@@ -161,6 +161,19 @@ export class Sfx {
     this.noise(ctx, 0.08, 0.15, 'bandpass', 900, 400, pan, 4);
   }
 
+  /** Falling scream into a chasm, or a deep glug into brine. */
+  hazardFall(liquid: boolean, pan: number): void {
+    const ctx = this.gate('hazardFall', 0.12);
+    if (!ctx) return;
+    if (liquid) {
+      this.noise(ctx, 0.35, 0.22, 'lowpass', 900, 120, pan, 3);
+      this.tone(ctx, 'sine', 220, 70, 0.3, 0.12, pan);
+    } else {
+      this.tone(ctx, 'sawtooth', 620, 90, 0.7, 0.07, pan);
+      this.noise(ctx, 0.5, 0.1, 'bandpass', 1400, 300, pan, 2);
+    }
+  }
+
   coreHit(): void {
     const ctx = this.gate('coreHit', 0.25);
     if (!ctx) return;

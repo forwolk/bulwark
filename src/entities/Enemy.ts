@@ -22,18 +22,27 @@ export class Enemy {
   moving = false;
   target: Damageable | null = null;
   retargetTimer = 0;
+  /** True when the unit can walk straight at its target; otherwise it follows the level's flow field. */
+  directPath = false;
   attackTimer: number;
   spawnTimer: number;
   stun = 0;
+  /** Height of the surface under the unit (terrain for walkers, smoothed for flyers). */
+  groundY: number;
+  /** Lost to a hazard: no longer a target, just playing out its fall. */
+  falling = false;
+  private fallTime = 0;
+  private fallSpeed = 0;
   private flash = 0;
   private animPhase = rand(0, 10);
   private hoverPhase = rand(0, 10);
 
-  constructor(readonly def: EnemyDef, x: number, z: number) {
+  constructor(readonly def: EnemyDef, x: number, z: number, groundY: number) {
     this.hp = def.hp;
+    this.groundY = groundY;
     this.material = createFlashableBodyMaterial();
     this.rig = createEnemyModel(def.kind, { body: this.material, glow: Materials.glowHot });
-    this.position.set(x, def.altitude, z);
+    this.position.set(x, groundY + def.altitude, z);
     this.yaw = Math.atan2(-x, -z);
     this.attackTimer = rand(0.2, def.attack.interval);
     this.spawnTimer = def.spawner?.interval ?? 0;
@@ -46,7 +55,7 @@ export class Enemy {
 
   /** World-space point projectiles and beams should aim for. */
   aimPoint(out: THREE.Vector3): THREE.Vector3 {
-    return out.set(this.position.x, this.flying ? this.position.y : this.def.radius * 0.9, this.position.z);
+    return out.set(this.position.x, this.flying ? this.position.y : this.position.y + this.def.radius * 0.9, this.position.z);
   }
 
   muzzleWorld(out: THREE.Vector3): THREE.Vector3 {
@@ -69,7 +78,11 @@ export class Enemy {
 
   animate(dt: number): void {
     this.hoverPhase += dt;
-    if (this.flying) this.position.y = this.def.altitude + Math.sin(this.hoverPhase * 2.2) * 0.35;
+    if (this.falling) {
+      this.syncTransform();
+      return;
+    }
+    this.position.y = this.groundY + this.def.altitude + (this.flying ? Math.sin(this.hoverPhase * 2.2) * 0.35 : 0);
     this.syncTransform();
 
     const speedFactor = this.moving ? this.def.speed / 2 : 0.4;
@@ -107,6 +120,28 @@ export class Enemy {
       this.flash = Math.max(0, this.flash - dt * 9);
       this.material.emissive.setRGB(this.flash * 2.5, this.flash * 2.2, this.flash * 2);
     }
+  }
+
+  /**
+   * Plays the fall into a chasm (or slow sink into liquid), tumbling as it goes.
+   * Returns true once the unit is out of sight.
+   */
+  updateFall(dt: number, liquid: boolean): boolean {
+    this.fallTime += dt;
+    this.fallSpeed += (liquid ? 2.5 : 32) * dt;
+    this.position.y -= this.fallSpeed * dt;
+    this.position.addScaledVector(this.knockback, dt * 0.5);
+    this.syncTransform();
+    this.rig.root.rotation.x = Math.min(1.3, this.fallTime * (liquid ? 0.8 : 3));
+    this.rig.root.rotation.z = this.fallTime * (liquid ? 0.3 : 1.7);
+    return this.fallTime > (liquid ? 1.6 : 1.3);
+  }
+
+  startFall(): void {
+    this.falling = true;
+    this.alive = false;
+    this.fallTime = 0;
+    this.fallSpeed = 0;
   }
 
   addTo(scene: THREE.Scene): void {

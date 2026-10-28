@@ -21,6 +21,15 @@ const perpA = new THREE.Vector3();
 const perpB = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 
+/** What effects need to know about the ground beneath them. */
+export interface EffectGround {
+  heightAt(x: number, z: number): number;
+  readonly dust: number;
+  readonly dustDark: number;
+}
+
+const FLAT_GROUND: EffectGround = { heightAt: () => 0, dust: 0x8b7d6d, dustDark: 0x6a5d52 };
+
 export interface ExplosionOptions {
   /** Main tint of fire and sparks. Defaults to orange fire. */
   color?: number;
@@ -45,6 +54,9 @@ export class Effects {
   private readonly lights: LightFlashes;
   private readonly decals = new Decals();
   private readonly bufferSize = new THREE.Vector2();
+  private ground: EffectGround = FLAT_GROUND;
+  private readonly dust = new THREE.Color();
+  private readonly dustDark = new THREE.Color();
 
   constructor(scene: THREE.Scene, private readonly cameraRig: CameraRig, private readonly webgl: THREE.WebGLRenderer) {
     const additive = (side: THREE.Side = THREE.FrontSide): THREE.MeshBasicMaterial =>
@@ -76,6 +88,21 @@ export class Effects {
     for (const sys of [this.sparks, this.flashes, this.puffs, this.debris, this.rings, this.walls]) scene.add(sys.mesh);
     scene.add(this.glows.points);
     scene.add(this.decals.mesh);
+  }
+
+  setGround(ground: EffectGround): void {
+    this.ground = ground;
+    this.dust.setHex(ground.dust);
+    this.dustDark.setHex(ground.dustDark);
+  }
+
+  /** Colour of the ground's dust, for debris and impacts. */
+  get dustColor(): number {
+    return this.ground.dust;
+  }
+
+  get dustDarkColor(): number {
+    return this.ground.dustDark;
   }
 
   update(dt: number): void {
@@ -130,7 +157,8 @@ export class Effects {
     const s = size;
     const tint = opts.color ?? C.fireMid;
     const tintHot = hdr(tint, 3.5);
-    const ground = pos.y < 1.5;
+    const groundY = this.ground.heightAt(pos.x, pos.z);
+    const ground = pos.y - groundY < 1.5;
 
     this.flashes.spawn({ x: pos.x, y: pos.y, z: pos.z, life: 0.16, size: s * 0.6, sizeEnd: s * 1.8, color: FIRE_CORE, colorEnd: BLACK, curve: 'easeOut' });
 
@@ -184,8 +212,8 @@ export class Effects {
     }
 
     if (ground) {
-      this.rings.spawn({ x: pos.x, y: 0.15, z: pos.z, life: 0.4, size: s * 0.4, sizeEnd: s * 3.4, color: hdr(tint, 2.2), colorEnd: BLACK, curve: 'easeOut' });
-      if (opts.scorch !== false) this.decals.add(pos, Math.min(s, 3) * 2.2);
+      this.rings.spawn({ x: pos.x, y: groundY + 0.15, z: pos.z, life: 0.4, size: s * 0.4, sizeEnd: s * 3.4, color: hdr(tint, 2.2), colorEnd: BLACK, curve: 'easeOut' });
+      if (opts.scorch !== false) this.decals.add(pos, Math.min(s, 3) * 2.2, groundY);
     }
     this.glows.spawn(pos, s * 4.5, s * 2.5, hdr(tint, 0.45), 0.25);
     if (opts.light !== false) this.lights.flash(pos, tint, 30 * s, 10 + s * 8, 0.35 + s * 0.08);
@@ -195,14 +223,15 @@ export class Effects {
   /** Expanding energy wall + rings: the core's nova pulse and boss stomps. */
   shockwave(pos: THREE.Vector3, radius: number, color: number): void {
     const life = 0.55;
-    this.walls.spawn({ x: pos.x, y: 0, z: pos.z, life, size: 1, sizeEnd: radius, color: hdr(color, 1.2), colorEnd: BLACK, curve: 'easeOut', scaleY: 0.25 });
-    this.rings.spawn({ x: pos.x, y: 0.2, z: pos.z, life, size: 1, sizeEnd: radius, color: hdr(color, 2.5), colorEnd: BLACK, curve: 'easeOut' });
-    this.rings.spawn({ x: pos.x, y: 0.25, z: pos.z, life: life * 1.4, size: 0.5, sizeEnd: radius * 0.75, color: hdr(C.fireCore, 2), colorEnd: BLACK, curve: 'easeOut' });
+    const y = this.ground.heightAt(pos.x, pos.z);
+    this.walls.spawn({ x: pos.x, y, z: pos.z, life, size: 1, sizeEnd: radius, color: hdr(color, 1.2), colorEnd: BLACK, curve: 'easeOut', scaleY: 0.25 });
+    this.rings.spawn({ x: pos.x, y: y + 0.2, z: pos.z, life, size: 1, sizeEnd: radius, color: hdr(color, 2.5), colorEnd: BLACK, curve: 'easeOut' });
+    this.rings.spawn({ x: pos.x, y: y + 0.25, z: pos.z, life: life * 1.4, size: 0.5, sizeEnd: radius * 0.75, color: hdr(C.fireCore, 2), colorEnd: BLACK, curve: 'easeOut' });
     for (let i = 0; i < 40; i++) {
       const a = (i / 40) * TAU;
       const speed = radius / life * rand(0.9, 1.3);
-      this.sparks.spawn({ x: pos.x + Math.cos(a) * 2, y: 0.6, z: pos.z + Math.sin(a) * 2, vx: Math.cos(a) * speed, vy: rand(0, 3), vz: Math.sin(a) * speed, life: life, size: 0.18, sizeEnd: 0, color: hdr(color, 5), colorEnd: BLACK, stretch: 0.06, drag: 1.2 });
-      this.puffs.spawn({ x: pos.x + Math.cos(a) * rand(3, radius * 0.8), y: 0.4, z: pos.z + Math.sin(a) * rand(3, radius * 0.8), vx: Math.cos(a) * 4, vy: rand(0.5, 2), vz: Math.sin(a) * 4, life: rand(0.8, 1.4), size: rand(0.5, 1.0), sizeEnd: 0, color: SMOKE_LIGHT, colorEnd: SMOKE, drag: 2, spin: 1, curve: 'pop' });
+      this.sparks.spawn({ x: pos.x + Math.cos(a) * 2, y: y + 0.6, z: pos.z + Math.sin(a) * 2, vx: Math.cos(a) * speed, vy: rand(0, 3), vz: Math.sin(a) * speed, life: life, size: 0.18, sizeEnd: 0, color: hdr(color, 5), colorEnd: BLACK, stretch: 0.06, drag: 1.2 });
+      this.puffs.spawn({ x: pos.x + Math.cos(a) * rand(3, radius * 0.8), y: y + 0.4, z: pos.z + Math.sin(a) * rand(3, radius * 0.8), vx: Math.cos(a) * 4, vy: rand(0.5, 2), vz: Math.sin(a) * 4, life: rand(0.8, 1.4), size: rand(0.5, 1.0), sizeEnd: 0, color: this.dust, colorEnd: this.dustDark, drag: 2, spin: 1, curve: 'pop' });
     }
     this.glows.spawn(pos.clone().setY(2), radius * 0.5, radius * 0.9, hdr(color, 0.3), 0.3);
     this.lights.flash(pos, color, 50, radius * 2, 0.6);
@@ -270,15 +299,16 @@ export class Effects {
     this.rings.spawn({ x: pos.x, y: 0.12, z: pos.z, life: 0.45, size: 0.4, sizeEnd: 2.6, color: hdr(C.playerGlow, 3), colorEnd: BLACK, curve: 'easeOut' });
     for (let i = 0; i < 10; i++) {
       const a = (i / 10) * TAU;
-      this.puffs.spawn({ x: pos.x + Math.cos(a) * 1.1, y: 0.3, z: pos.z + Math.sin(a) * 1.1, vx: Math.cos(a) * 3, vy: rand(0.5, 1.5), vz: Math.sin(a) * 3, life: rand(0.5, 0.9), size: rand(0.3, 0.55), sizeEnd: 0, color: new THREE.Color(C.sand), colorEnd: new THREE.Color(C.sandDark), drag: 3, spin: 2, curve: 'pop' });
+      this.puffs.spawn({ x: pos.x + Math.cos(a) * 1.1, y: 0.3, z: pos.z + Math.sin(a) * 1.1, vx: Math.cos(a) * 3, vy: rand(0.5, 1.5), vz: Math.sin(a) * 3, life: rand(0.5, 0.9), size: rand(0.3, 0.55), sizeEnd: 0, color: this.dust, colorEnd: this.dustDark, drag: 3, spin: 2, curve: 'pop' });
     }
     this.glows.spawn(pos.clone().setY(1), 3.5, 2, hdr(C.playerGlow, 0.4), 0.3);
   }
 
   /** Vertical burst used when the boss births skitters and when units warp in. */
   warpIn(pos: THREE.Vector3, color: number): void {
-    this.walls.spawn({ x: pos.x, y: 0, z: pos.z, life: 0.35, size: 1.2, sizeEnd: 0.2, color: hdr(color, 3), colorEnd: BLACK, scaleY: 6 });
-    this.rings.spawn({ x: pos.x, y: 0.15, z: pos.z, life: 0.35, size: 0.3, sizeEnd: 2.2, color: hdr(color, 3), colorEnd: BLACK, curve: 'easeOut' });
+    const y = this.ground.heightAt(pos.x, pos.z);
+    this.walls.spawn({ x: pos.x, y, z: pos.z, life: 0.35, size: 1.2, sizeEnd: 0.2, color: hdr(color, 3), colorEnd: BLACK, scaleY: 6 });
+    this.rings.spawn({ x: pos.x, y: y + 0.15, z: pos.z, life: 0.35, size: 0.3, sizeEnd: 2.2, color: hdr(color, 3), colorEnd: BLACK, curve: 'easeOut' });
   }
 
   /** Healing sparkle on structures between waves. */
@@ -289,6 +319,23 @@ export class Effects {
   }
 
   scorch(pos: THREE.Vector3, size: number): void {
-    this.decals.add(pos, size);
+    this.decals.add(pos, size, this.ground.heightAt(pos.x, pos.z));
+  }
+
+  /** An enemy lost to a hazard: a splash ring on liquid, a puff of grit off a cliff edge. */
+  hazardSplash(pos: THREE.Vector3, color: number, liquid: boolean): void {
+    if (liquid) {
+      this.rings.spawn({ x: pos.x, y: pos.y + 0.1, z: pos.z, life: 0.7, size: 0.4, sizeEnd: 3.2, color: hdr(color, 1.6), colorEnd: BLACK, curve: 'easeOut' });
+      for (let i = 0; i < 14; i++) {
+        const a = rand(0, TAU);
+        const s = rand(2, 5);
+        this.sparks.spawn({ x: pos.x, y: pos.y + 0.2, z: pos.z, vx: Math.cos(a) * s, vy: rand(4, 9), vz: Math.sin(a) * s, life: rand(0.4, 0.7), size: 0.12, sizeEnd: 0, color: hdr(color, 2.5), colorEnd: BLACK, stretch: 0.03, gravity: 25 });
+      }
+      this.glows.spawn(pos, 3, 2, hdr(color, 0.5), 0.4);
+      return;
+    }
+    for (let i = 0; i < 6; i++) {
+      this.puffs.spawn({ x: pos.x + rand(-0.6, 0.6), y: pos.y + 0.3, z: pos.z + rand(-0.6, 0.6), vx: rand(-1, 1), vy: rand(0.5, 1.5), vz: rand(-1, 1), life: rand(0.5, 0.9), size: rand(0.3, 0.5), sizeEnd: 0, color: this.dust, colorEnd: this.dustDark, drag: 2, spin: 2, curve: 'pop' });
+    }
   }
 }

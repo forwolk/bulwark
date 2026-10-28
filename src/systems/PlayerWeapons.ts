@@ -48,7 +48,7 @@ export class PlayerWeapons {
     const { core, projectiles, effects, sfx, upgrades, aimPoint } = this.world;
     core.nextShot(muzzle, facing);
     // Fly toward the cursor at chest height, with a little spread.
-    dir.set(aimPoint.x, 1.0, aimPoint.z).sub(muzzle);
+    dir.set(aimPoint.x, aimPoint.y + 1.0, aimPoint.z).sub(muzzle);
     if (dir.lengthSq() < 4) dir.copy(facing);
     dir.normalize();
     dir.x += rand(-CORE.gun.spread, CORE.gun.spread);
@@ -111,13 +111,9 @@ export class PlayerWeapons {
     effects.shockwave(core.position, radius, C.playerGlow);
     sfx.nova();
     for (const e of enemies.inRadius(core.position.x, core.position.z, radius, 'both', [])) {
-      const dx = e.position.x - core.position.x;
-      const dz = e.position.z - core.position.z;
-      const d = Math.hypot(dx, dz) || 1;
+      const d = Math.hypot(e.position.x - core.position.x, e.position.z - core.position.z);
       const falloff = 1 - Math.min(1, d / radius) * 0.5;
-      // Heavy units resist the push.
-      const mass = Math.max(1, e.def.radius);
-      e.knockback.set((dx / d) * knockback * falloff / mass, 0, (dz / d) * knockback * falloff / mass);
+      enemies.push(e, core.position.x, core.position.z, knockback * falloff);
       e.stun = Math.max(e.stun, stun);
       enemies.damage(e, damage * falloff);
     }

@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { clamp, damp } from '../core/math';
 
-const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
 /** Angled top-down camera with cursor lead, wheel zoom and trauma-based screen shake. */
 export class CameraRig {
   readonly camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.5, 700);
@@ -50,10 +48,15 @@ export class CameraRig {
     this.trauma = Math.min(1, this.trauma + amount);
   }
 
-  /** Raycasts the pointer onto the y=0 ground plane. */
-  groundPoint(pointer: THREE.Vector2, out: THREE.Vector3): boolean {
+  /** World-space ray under the pointer. The level intersects it with its terrain. */
+  pointerRay(pointer: THREE.Vector2): THREE.Ray {
     this.raycaster.setFromCamera(pointer, this.camera);
-    return this.raycaster.ray.intersectPlane(GROUND, out) !== null;
+    return this.raycaster.ray;
+  }
+
+  /** Ground point the camera looks at. */
+  get focusPoint(): THREE.Vector3 {
+    return this.focus;
   }
 
   /** Projects a world position into CSS pixels. Returns false when behind the camera. */

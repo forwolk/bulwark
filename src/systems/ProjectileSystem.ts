@@ -44,6 +44,8 @@ export interface BulletParams {
 
 const GRAVITY = 30;
 const MAX = 1500;
+/** Knockback impulse from blasts. Light units near a drop get thrown into it. */
+const BLAST_PUSH = { shell: 17, missile: 10 };
 const AXIS_Z = new THREE.Vector3(0, 0, 1);
 const tmpMatrix = new THREE.Matrix4();
 const tmpQuat = new THREE.Quaternion();
@@ -197,12 +199,14 @@ export class ProjectileSystem {
 
   /** Advances one projectile. Returns true when it should be removed. */
   private step(p: Projectile, dt: number): boolean {
-    const { effects } = this.world;
+    const { effects, level } = this.world;
     switch (p.kind) {
       case 'bullet': {
         p.pos.addScaledVector(p.vel, dt);
-        if (p.pos.y < 0.9) {
-          p.pos.y = 0.9;
+        // Shots skim the battlefield: they ride up slopes and fly level over chasms.
+        const floor = level.floorAt(p.pos.x, p.pos.z);
+        if (p.pos.y < floor + 0.9) {
+          p.pos.y = floor + 0.9;
           p.vel.y = 0;
         }
         const hit = this.sweepEnemies(p);
@@ -211,7 +215,7 @@ export class ProjectileSystem {
           return true;
         }
         if (p.age >= p.life) {
-          effects.impact(p.pos.setY(0.3), C.sand, 0.4);
+          if (!level.isHazard(p.pos.x, p.pos.z)) effects.impact(p.pos.setY(floor + 0.3), effects.dustColor, 0.4);
           return true;
         }
         return false;
@@ -226,12 +230,13 @@ export class ProjectileSystem {
           effects.emberTrail(p.pos, p.kind === 'shell' ? C.fireMid : C.enemyPlasma, p.kind === 'shell' ? 1 : 1.8);
           effects.smokeTrail(p.pos, p.kind === 'shell' ? 1 : 1.6);
         }
-        if (p.age >= p.life || p.pos.y <= 0) {
-          p.pos.y = 0.2;
-          if (p.kind === 'shell') this.splashEnemies(p.pos, p.splash, p.damage, 'ground');
+        const ground = level.heightAt(p.pos.x, p.pos.z);
+        if (p.age >= p.life || p.pos.y <= ground) {
+          p.pos.y = Math.max(p.pos.y, ground) + 0.2;
+          if (p.kind === 'shell') this.splashEnemies(p.pos, p.splash, p.damage, 'ground', BLAST_PUSH.shell);
           else this.splashDefenses(p.pos, p.splash, p.damage);
           const size = p.kind === 'shell' ? 1.5 : 2.2;
-          effects.explosion(p.pos, size, { debrisColor: C.sandDark, shake: p.kind === 'shell' ? 0.08 : 0.25, color: p.kind === 'shell' ? undefined : C.enemyPlasma });
+          effects.explosion(p.pos, size, { debrisColor: effects.dustDarkColor, shake: p.kind === 'shell' ? 0.08 : 0.25, color: p.kind === 'shell' ? undefined : C.enemyPlasma });
           this.world.sfx.explosion(size, this.world.pan(p.pos.x));
           return true;
         }
@@ -255,8 +260,8 @@ export class ProjectileSystem {
           effects.emberTrail(p.pos, C.playerGlow, 0.8);
         }
         const close = p.pos.distanceToSquared(p.targetPoint) < 1.2;
-        if (close || p.pos.y <= 0.1 || p.age >= p.life) {
-          this.splashEnemies(p.pos, p.splash, p.damage, 'both');
+        if (close || p.pos.y <= level.floorAt(p.pos.x, p.pos.z) + 0.1 || p.age >= p.life) {
+          this.splashEnemies(p.pos, p.splash, p.damage, 'both', BLAST_PUSH.missile);
           effects.explosion(p.pos, 1.1, { color: C.playerGlow, debrisColor: C.enemyShell, shake: 0.04 });
           this.world.sfx.explosion(1, this.world.pan(p.pos.x));
           return true;
@@ -336,11 +341,13 @@ export class ProjectileSystem {
     }
   }
 
-  private splashEnemies(pos: THREE.Vector3, radius: number, damage: number, layer: TargetLayer): void {
+  private splashEnemies(pos: THREE.Vector3, radius: number, damage: number, layer: TargetLayer, push = 0): void {
     const { enemies } = this.world;
     for (const e of enemies.inRadius(pos.x, pos.z, radius, layer, [])) {
       const d = Math.hypot(e.position.x - pos.x, e.position.z - pos.z);
-      enemies.damage(e, damage * (1 - 0.5 * Math.min(1, d / radius)));
+      const falloff = 1 - 0.5 * Math.min(1, d / radius);
+      if (push > 0) enemies.push(e, pos.x, pos.z, push * falloff);
+      enemies.damage(e, damage * falloff);
     }
   }
 

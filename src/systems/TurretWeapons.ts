@@ -94,7 +94,8 @@ function fireFlak(s: Structure, target: Enemy, w: WeaponDef, world: World): void
 function fireMortar(s: Structure, target: Enemy, w: WeaponDef, world: World): void {
   s.nextMuzzle(muzzle);
   const flight = THREE.MathUtils.clamp(muzzle.distanceTo(target.position) / (w.projectileSpeed ?? 20), 0.9, 2.2);
-  aim.copy(target.position).addScaledVector(target.velocity, flight).setY(0);
+  aim.copy(target.position).addScaledVector(target.velocity, flight);
+  aim.y = world.level.heightAt(aim.x, aim.z);
   world.projectiles.fireShell(muzzle, aim, flight, w.damage, w.splash ?? 3.5);
   world.effects.muzzleFlash(muzzle, dir.set(0, 1, 0), C.fireMid, 1.4);
   for (let i = 0; i < 3; i++) world.effects.smokeTrail(muzzle, 2);

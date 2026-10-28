@@ -63,12 +63,12 @@ export class Decals {
     }
   }
 
-  add(pos: THREE.Vector3, size: number): void {
+  add(pos: THREE.Vector3, size: number, groundY: number): void {
     const i = this.next;
     this.next = (this.next + 1) % this.max;
     this.ages[i] = 0;
     const rot = new THREE.Matrix4().makeRotationY(Math.random() * TAU);
-    this.matrix.makeScale(size, 1, size).premultiply(rot).setPosition(pos.x, 0.09, pos.z);
+    this.matrix.makeScale(size, 1, size).premultiply(rot).setPosition(pos.x, groundY + 0.09, pos.z);
     this.mesh.setMatrixAt(i, this.matrix);
     this.mesh.instanceMatrix.needsUpdate = true;
   }

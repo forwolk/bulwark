@@ -3,6 +3,8 @@ import { ECONOMY } from '../config/balance';
 import { PALETTE as C } from '../config/palette';
 import { rand } from './math';
 import type { Phase } from './events';
+import { loadLevelChoice, saveLevelChoice } from '../levels/selection';
+import type { LevelId } from '../levels/types';
 import { UI } from '../ui/UI';
 import { World } from './World';
 
@@ -17,10 +19,14 @@ export class Game {
   private paused = false;
 
   constructor(viewport: HTMLElement, uiRoot: HTMLElement) {
-    this.world = new World(viewport);
+    this.world = new World(viewport, loadLevelChoice());
     this.ui = new UI(uiRoot, this.world, {
       onStart: () => this.start(),
       onLaunch: () => this.launchWave(),
+      onSelectLevel: (id) => this.selectLevel(id),
+      onMenu: () => this.ui.screens.showTitle(),
+      onResume: () => this.setPaused(false),
+      onQuit: () => this.quitToMenu(),
     });
     requestAnimationFrame(this.frame);
   }
@@ -38,7 +44,30 @@ export class Game {
     world.reset();
     this.timeScale = 1;
     this.setPhase('build');
-    this.ui.hud.showBanner('Build your defenses', 'Place turrets with 1–5, then launch the wave', 'info');
+    this.ui.hud.showBanner(world.level.def.name, 'Build your defenses with 1–5, then launch the wave', 'info');
+  }
+
+  /** Swaps the battlefield behind the menu. Not allowed mid-run. */
+  private selectLevel(id: LevelId): void {
+    if (this.world.playing) return;
+    this.world.sfx.unlock();
+    this.world.sfx.click();
+    this.world.loadLevel(id);
+    saveLevelChoice(id);
+    this.ui.screens.setSelectedLevel(id);
+  }
+
+  private setPaused(paused: boolean): void {
+    this.paused = paused;
+    this.ui.screens.setPaused(paused);
+  }
+
+  private quitToMenu(): void {
+    this.setPaused(false);
+    this.timeScale = 1;
+    this.world.reset();
+    this.setPhase('title');
+    this.ui.screens.showTitle();
   }
 
   private launchWave(): void {
@@ -72,7 +101,7 @@ export class Game {
     world.sfx.victory();
     this.setPhase('victory');
     world.build.select(null);
-    this.ui.screens.showEnd(true, world.stats, world.waves.index + 1, world.waves.total);
+    this.ui.screens.showEnd(true, world.stats, world.waves.index + 1, world.waves.total, world.level.def.name);
   }
 
   /** Slow-motion chain reaction as the core goes down. */
@@ -98,7 +127,7 @@ export class Game {
     });
     timers.after(2.2, () => {
       this.timeScale = 1;
-      this.ui.screens.showEnd(false, world.stats, world.waves.index + 1, world.waves.total);
+      this.ui.screens.showEnd(false, world.stats, world.waves.index + 1, world.waves.total, world.level.def.name);
     });
   }
 
@@ -115,9 +144,8 @@ export class Game {
       const muted = world.sfx.toggleMute();
       world.events.emit('message', { text: muted ? 'Sound off' : 'Sound on', tone: 'info' });
     }
-    if (input.wasKeyPressed('KeyP') && world.playing) {
-      this.paused = !this.paused;
-      this.ui.screens.setPaused(this.paused);
+    if ((input.wasKeyPressed('KeyP') || (this.paused && input.wasKeyPressed('Escape'))) && world.playing) {
+      this.setPaused(!this.paused);
     }
 
     if (!this.paused) {

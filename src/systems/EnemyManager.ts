@@ -17,6 +17,8 @@ export function matchesLayer(e: Enemy, layer: TargetLayer): boolean {
 /** Owns enemy lifetimes: spawning, per-frame AI, damage, death and spatial queries. */
 export class EnemyManager {
   private list: Enemy[] = [];
+  /** Enemies lost to hazards, kept around only for their fall animation. */
+  private falling: Enemy[] = [];
   private readonly hash = new SpatialHash<Enemy>(4);
 
   constructor(private readonly world: World) {}
@@ -30,7 +32,9 @@ export class EnemyManager {
   }
 
   spawn(kind: EnemyKind, x: number, z: number): Enemy {
-    const enemy = new Enemy(ENEMIES[kind], x, z);
+    const def = ENEMIES[kind];
+    const { level } = this.world;
+    const enemy = new Enemy(def, x, z, def.flying ? level.floorAt(x, z) : level.heightAt(x, z));
     enemy.addTo(this.world.scene);
     this.list.push(enemy);
     return enemy;
@@ -47,10 +51,45 @@ export class EnemyManager {
 
     if (this.list.some((e) => !e.alive)) {
       this.list = this.list.filter((e) => {
-        if (!e.alive) e.dispose(this.world.scene);
-        return e.alive;
+        if (e.alive) return true;
+        if (e.falling) this.falling.push(e);
+        else e.dispose(this.world.scene);
+        return false;
       });
     }
+
+    if (this.falling.length > 0) {
+      const liquid = this.world.level.theme.hazard?.kind === 'liquid';
+      this.falling = this.falling.filter((e) => {
+        const done = e.updateFall(dt, liquid);
+        if (done) e.dispose(this.world.scene);
+        return !done;
+      });
+    }
+  }
+
+  /** Knockback impulse away from a point. Heavy units resist it. */
+  push(e: Enemy, fromX: number, fromZ: number, strength: number): void {
+    const dx = e.position.x - fromX;
+    const dz = e.position.z - fromZ;
+    const d = Math.hypot(dx, dz) || 1;
+    const k = strength / Math.max(1, e.def.radius);
+    e.knockback.x += (dx / d) * k;
+    e.knockback.z += (dz / d) * k;
+  }
+
+  /** An enemy knocked into a chasm or pool: counts as a kill, then plays out its fall. */
+  drop(e: Enemy): void {
+    if (!e.alive) return;
+    const { effects, sfx, level } = this.world;
+    const hazard = level.theme.hazard;
+    const liquid = hazard?.kind === 'liquid';
+    e.startFall();
+    const at = e.position.clone();
+    at.y = liquid ? -0.3 : level.floorAt(at.x, at.z);
+    effects.hazardSplash(at, hazard?.color ?? C.enemyGlow, liquid);
+    sfx.hazardFall(liquid, this.world.pan(at.x));
+    this.reward(e, at);
   }
 
   damage(enemy: Enemy, amount: number): void {
@@ -61,7 +100,7 @@ export class EnemyManager {
 
   private kill(e: Enemy): void {
     e.alive = false;
-    const { effects, sfx, economy, events, stats } = this.world;
+    const { effects, sfx } = this.world;
     const def = e.def;
     const pos = e.aimPoint(new THREE.Vector3());
 
@@ -76,9 +115,14 @@ export class EnemyManager {
       sfx.explosion(def.deathSize, this.world.pan(pos.x));
     }
 
-    economy.earn(def.reward);
+    this.reward(e, pos);
+  }
+
+  private reward(e: Enemy, pos: THREE.Vector3): void {
+    const { economy, events, stats } = this.world;
+    economy.earn(e.def.reward);
     stats.kills++;
-    events.emit('enemyKilled', { kind: def.kind, reward: def.reward, position: pos });
+    events.emit('enemyKilled', { kind: e.def.kind, reward: e.def.reward, position: pos });
   }
 
   /** Staggered chain of blasts across the boss's body, then a final shockwave. */
@@ -132,7 +176,9 @@ export class EnemyManager {
 
   clear(): void {
     for (const e of this.list) e.dispose(this.world.scene);
+    for (const e of this.falling) e.dispose(this.world.scene);
     this.list = [];
+    this.falling = [];
     this.hash.clear();
   }
 }

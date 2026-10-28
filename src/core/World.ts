@@ -13,6 +13,9 @@ import { ProjectileSystem } from '../systems/ProjectileSystem';
 import { StructureManager } from '../systems/StructureManager';
 import { UpgradeSystem } from '../systems/UpgradeSystem';
 import { WaveManager } from '../systems/WaveManager';
+import { levelById } from '../levels/catalog';
+import { Level } from '../levels/Level';
+import type { LevelId } from '../levels/types';
 import { Effects } from '../vfx/Effects';
 import { Arena } from '../world/Arena';
 import { EventBus } from './EventBus';
@@ -40,6 +43,8 @@ export class World {
   readonly sfx = new Sfx();
   readonly timers = new Timers();
   readonly arena: Arena;
+  /** The loaded battlefield. Replaced by loadLevel(), so systems read it fresh each frame. */
+  level: Level;
   readonly effects: Effects;
   readonly core: Core;
   readonly economy: Economy;
@@ -56,12 +61,15 @@ export class World {
   hasAim = false;
   readonly stats: RunStats = { kills: 0, time: 0, structuresBuilt: 0 };
 
-  constructor(container: HTMLElement) {
+  private readonly bufferSize = new THREE.Vector2();
+
+  constructor(container: HTMLElement, levelId: LevelId) {
     this.renderer = new Renderer(container, this.cameraRig.camera);
     this.resolution = new ResolutionGovernor(this.renderer);
     this.input = new Input(this.renderer.canvas);
     this.arena = new Arena(this.scene);
     this.effects = new Effects(this.scene, this.cameraRig, this.renderer.webgl);
+    this.level = this.createLevel(levelId);
     this.core = new Core(this.scene);
     this.economy = new Economy(this.events);
     this.upgrades = new UpgradeSystem(this.events, this.economy, this.core);
@@ -71,6 +79,26 @@ export class World {
     this.weapons = new PlayerWeapons(this);
     this.waves = new WaveManager(this);
     this.build = new BuildSystem(this);
+  }
+
+  private createLevel(id: LevelId): Level {
+    const level = new Level(levelById(id));
+    this.scene.add(level.root);
+    this.arena.applyTheme(level.theme);
+    this.renderer.webgl.toneMappingExposure = level.theme.exposure;
+    this.effects.setGround(level);
+    return level;
+  }
+
+  /** Swaps the battlefield. Only valid outside a run: clears every unit and effect. */
+  loadLevel(id: LevelId): void {
+    if (id === this.level.def.id) return;
+    this.enemies.clear();
+    this.structures.clear();
+    this.projectiles.clear();
+    this.effects.clear();
+    this.level.dispose();
+    this.level = this.createLevel(id);
   }
 
   get scene(): THREE.Scene {
@@ -98,7 +126,7 @@ export class World {
   }
 
   update(dt: number): void {
-    this.hasAim = this.cameraRig.groundPoint(this.input.pointer, this.aimPoint);
+    this.hasAim = this.level.raycast(this.cameraRig.pointerRay(this.input.pointer), this.aimPoint);
     this.cameraRig.update(dt, this.input.pointer, this.input.wheelDelta);
 
     if (this.playing) {
@@ -114,6 +142,8 @@ export class World {
     this.core.update(dt, this.effects);
     this.effects.update(dt);
     this.arena.update(dt);
+    const { camera, focusPoint } = this.cameraRig;
+    this.level.update(dt, camera, focusPoint, this.renderer.webgl.getDrawingBufferSize(this.bufferSize).y);
     this.timers.update(dt);
   }
 
