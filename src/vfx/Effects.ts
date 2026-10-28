@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RENDER } from '../config/graphics';
 import { PALETTE as C } from '../config/palette';
 import { rand, TAU } from '../core/math';
 import type { CameraRig } from '../render/CameraRig';
@@ -70,7 +71,7 @@ export class Effects {
     const wall = new THREE.CylinderGeometry(1, 1, 1, 24, 1, true);
     wall.translate(0, 0.5, 0);
     this.walls = new InstancedParticles(wall, additive(THREE.DoubleSide), 60, 'flat');
-    this.lights = new LightFlashes(scene);
+    this.lights = new LightFlashes(scene, RENDER.flashLights);
 
     for (const sys of [this.sparks, this.flashes, this.puffs, this.debris, this.rings, this.walls]) scene.add(sys.mesh);
     scene.add(this.glows.points);

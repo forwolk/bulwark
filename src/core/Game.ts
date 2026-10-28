@@ -106,8 +106,10 @@ export class Game {
     requestAnimationFrame(this.frame);
     const { world } = this;
     const { input } = world;
-    const rawDt = Math.min(MAX_FRAME, (now - this.lastTime) / 1000);
+    const frameSeconds = (now - this.lastTime) / 1000;
+    const rawDt = Math.min(MAX_FRAME, frameSeconds);
     this.lastTime = now;
+    world.resolution.update(frameSeconds);
 
     if (input.wasKeyPressed('KeyM')) {
       const muted = world.sfx.toggleMute();

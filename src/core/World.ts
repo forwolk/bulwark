@@ -4,6 +4,7 @@ import type { Damageable } from '../entities/Damageable';
 import { Core } from '../entities/Core';
 import { CameraRig } from '../render/CameraRig';
 import { Renderer } from '../render/Renderer';
+import { ResolutionGovernor } from '../render/ResolutionGovernor';
 import { BuildSystem } from '../systems/BuildSystem';
 import { Economy } from '../systems/Economy';
 import { EnemyManager } from '../systems/EnemyManager';
@@ -34,6 +35,7 @@ export class World {
   readonly events = new EventBus<GameEvents>();
   readonly cameraRig = new CameraRig();
   readonly renderer: Renderer;
+  readonly resolution: ResolutionGovernor;
   readonly input: Input;
   readonly sfx = new Sfx();
   readonly timers = new Timers();
@@ -56,6 +58,7 @@ export class World {
 
   constructor(container: HTMLElement) {
     this.renderer = new Renderer(container, this.cameraRig.camera);
+    this.resolution = new ResolutionGovernor(this.renderer);
     this.input = new Input(this.renderer.canvas);
     this.arena = new Arena(this.scene);
     this.effects = new Effects(this.scene, this.cameraRig, this.renderer.webgl);

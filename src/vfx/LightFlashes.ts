@@ -14,7 +14,7 @@ interface Flash {
 export class LightFlashes {
   private readonly flashes: Flash[] = [];
 
-  constructor(scene: THREE.Scene, size = 6) {
+  constructor(scene: THREE.Scene, size: number) {
     for (let i = 0; i < size; i++) {
       const light = new THREE.PointLight(0xffffff, 0, 10, 1.6);
       scene.add(light);

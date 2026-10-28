@@ -52,6 +52,8 @@ Tuning the game usually only touches `src/config/`. To add an enemy:
 ### Rendering notes
 - Models are built from primitives by `ModelBuilder` and merged into one lit mesh and one glow mesh per part. Colour is stored per vertex, so the whole game uses a handful of shared materials.
 - The scene renders into a half-float target. Glow colours go above 1.0 and drive `UnrealBloomPass`. `OutputPass` then applies ACES tone mapping.
+- Only the scene pass is multisampled. The resolved image is copied to a single-sample buffer before bloom, because blending into an MSAA buffer is very slow on Apple Silicon. Bloom is sized in CSS pixels.
+- Resolution is capped by a pixel budget (about 1.5x on a Retina MacBook), and `ResolutionGovernor` steps it down further if frames run slow. The settings are in `config/graphics.ts`.
 - Each particle type is a single `InstancedMesh` with struct-of-arrays state. There are no per-particle allocations.
 
 In dev builds, `window.bulwark` exposes the running game for console debugging.
