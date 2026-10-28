@@ -10,6 +10,18 @@ There are three battlefields, picked on the title screen. Each has its own look 
 | **Sunscar Dunes**: pale desert flats walled in by sandstone mesas | 4 canyons | Quicksand pits |
 | **Mossgate Hollow**: grassy stone terraces with standing stones | 4 dirt ramps down from the rim | Ravines with a stream |
 
+### Core gun modes
+The core's main gun has four modes. Switching takes 0.7 s while the barrels swap, and you can't fire during it. Damage and fire-rate upgrades apply to every mode.
+
+| Mode | Behaviour |
+| --- | --- |
+| Autocannon | Twin rapid cannons with a small splash; good all-round |
+| Scatter | 7-pellet cone from four barrels; short range, shoves swarms back |
+| Lance | Hold to channel a piercing beam that ramps up over 0.6 s; hits air too |
+| Siege | Lobs a heavy shell at the cursor (10–50 range, shown by a ring); big knockback, ground only |
+
+With **auto-fire** on, the gun picks targets itself: the enemy closest to the core that the current mode can hit. It leads moving targets and fires once lined up. Holding LMB still takes manual control. The setting is remembered per browser.
+
 ### Squads
 Squads are allied units you deploy from the core for scrap, using the left-hand panel or Q W E R. Each type has its own cooldown, and at most 6 squads can be in the field at once. Each squad takes a guard post on the emptiest entry lane and engages enemies within a leash of that post. Enemies attack squads too, and squads are repaired between waves with the structures.
 
@@ -38,7 +50,9 @@ Requires Node 16+. Vite is pinned to v4 for Node 16 compatibility. Once you're o
 
 | Input | Action |
 | --- | --- |
-| Mouse / LMB hold | Aim and fire the core cannon |
+| Mouse / LMB hold | Aim and fire the core gun |
+| A S D F / Tab | Switch gun mode: Autocannon / Scatter / Lance / Siege (Tab cycles) |
+| T | Toggle auto-fire (also a switch in the Core gun panel) |
 | RMB | Swarm missiles at enemies near the cursor |
 | Space | Nova pulse: damage plus knockback around the core |
 | 1–5 | Select Repeater / Flak / Mortar / Arc Coil / Barrier |
@@ -57,7 +71,7 @@ src/
   entities/   Core, Enemy, Structure, Ally, Squad: state + visuals for a single object
   systems/    Behaviour across many objects: EnemyAI, TurretWeapons, ProjectileSystem,
               PlayerWeapons, WaveManager, BuildSystem, Economy, UpgradeSystem,
-              SquadManager + AllyAI (player squads)
+              SquadManager + AllyAI (player squads), CoreGun (main gun modes)
   render/     Renderer (HDR + bloom), CameraRig, ModelBuilder, procedural models/
   vfx/        Instanced low-poly particles, glow sprites, light flashes, scorch decals,
               and Effects (named recipes like explosion, shockwave, lightning)

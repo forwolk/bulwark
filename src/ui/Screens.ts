@@ -35,6 +35,7 @@ export class Screens {
     const lines: [string, string][] = [
       ['Mouse · LMB', 'Aim and fire the core gun'],
       ['A S D F · Tab', 'Switch gun: autocannon, scatter, lance, siege'],
+      ['T', 'Toggle auto-fire'],
       ['RMB', 'Swarm missiles at cursor'],
       ['Space', 'Nova pulse: knockback blast'],
       ['1 – 5', 'Build turrets and barriers'],

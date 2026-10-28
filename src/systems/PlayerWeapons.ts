@@ -29,7 +29,6 @@ export class PlayerWeapons {
   update(dt: number): void {
     const { input, core, build } = this.world;
     if (!core.alive) return;
-    if (this.world.hasAim) core.aimAt(this.world.aimPoint, dt);
 
     this.missileCooldown = Math.max(0, this.missileCooldown - dt);
     this.novaCooldown = Math.max(0, this.novaCooldown - dt);

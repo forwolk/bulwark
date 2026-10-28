@@ -7,14 +7,21 @@ interface Tile {
   fill: HTMLElement;
 }
 
-/** Row of core weapon modes above the ability tiles: hotkeys, active mode, swap progress. */
+/** Row of core weapon modes above the ability tiles: hotkeys, active mode, swap progress, auto-fire switch. */
 export class WeaponSelector {
   private readonly root: HTMLElement;
   private readonly tiles = new Map<CoreWeaponId, Tile>();
+  private readonly autoSwitch: HTMLButtonElement;
 
   constructor(parent: HTMLElement, private readonly world: World) {
     this.root = el('div', 'weapons', parent);
-    el('div', 'weapons-label label', this.root, 'Core gun · Tab');
+    const head = el('div', 'weapons-head', this.root);
+    el('div', 'label', head, 'Core gun · Tab');
+    this.autoSwitch = el('button', 'auto-switch', head);
+    el('span', 'auto-key', this.autoSwitch, 'T');
+    el('span', 'auto-text', this.autoSwitch, 'Auto-fire');
+    el('span', 'auto-track', this.autoSwitch).appendChild(el('span', 'auto-knob'));
+    this.autoSwitch.addEventListener('click', () => world.weapons.gun.setAutoFire(!world.weapons.gun.autoFire));
     const row = el('div', 'weapons-row', this.root);
     for (const id of CORE_WEAPON_ORDER) {
       const def = CORE_WEAPONS[id];
@@ -37,6 +44,7 @@ export class WeaponSelector {
 
   update(): void {
     const gun = this.world.weapons.gun;
+    this.autoSwitch.classList.toggle('on', gun.autoFire);
     const incoming = gun.incoming;
     for (const [id, tile] of this.tiles) {
       const active = id === (incoming ?? gun.current);
