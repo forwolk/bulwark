@@ -9,6 +9,9 @@ import { updateTurret } from './TurretWeapons';
 
 export type PlacementError = 'range' | 'terrain' | 'occupied' | 'funds' | null;
 
+/** Largest height difference across a structure's footprint that still counts as buildable. */
+const MAX_BUILD_SLOPE = 0.7;
+
 const cellKey = (x: number, z: number): string => `${Math.round(x / ARENA.gridSize)},${Math.round(z / ARENA.gridSize)}`;
 
 /** Player structures: placement grid, per-frame weapon updates, collisions and destruction. */
@@ -29,7 +32,7 @@ export class StructureManager {
   placementError(kind: StructureKind, x: number, z: number): PlacementError {
     const r = Math.hypot(x, z);
     if (r < ARENA.buildMinRadius || r > ARENA.buildMaxRadius) return 'range';
-    if (!this.world.level.walkable(x, z)) return 'terrain';
+    if (!this.world.level.walkable(x, z) || this.slope(x, z) > MAX_BUILD_SLOPE) return 'terrain';
     if (this.grid.has(cellKey(x, z))) return 'occupied';
     if (!this.world.economy.canAfford(STRUCTURES[kind].cost)) return 'funds';
     return null;
@@ -39,7 +42,7 @@ export class StructureManager {
     if (this.placementError(kind, x, z) !== null) return null;
     const def = STRUCTURES[kind];
     if (!this.world.economy.spend(def.cost)) return null;
-    const s = new Structure(def, x, z);
+    const s = new Structure(def, x, z, this.world.level.heightAt(x, z));
     s.addTo(this.world.scene);
     this.list.push(s);
     this.grid.set(cellKey(x, z), s);
@@ -47,6 +50,19 @@ export class StructureManager {
     this.world.stats.structuresBuilt++;
     this.world.events.emit('structureBuilt', { kind });
     return s;
+  }
+
+  /** Height spread across a footprint around (x, z). */
+  private slope(x: number, z: number): number {
+    const { level } = this.world;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const [dx, dz] of [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9], [0, -0.9]]) {
+      const h = level.heightAt(x + dx, z + dz);
+      lo = Math.min(lo, h);
+      hi = Math.max(hi, h);
+    }
+    return hi - lo;
   }
 
   sellValue(s: Structure): number {

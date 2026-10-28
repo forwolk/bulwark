@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { lerp, smoothstep, TAU } from '../../core/math';
 import { Water } from '../../world/features/Water';
 import { fbm } from '../../world/Noise';
-import { boulder, bush, crystal, fern, flowers, log, pine, roundTree } from '../props';
+import { scatterClutter } from '../clutter';
+import { boulder, branch, bush, crystal, fern, flowers, grassTuft, log, pebbles, pine, roundTree, stump } from '../props';
 import type { Biome, DecorContext } from '../types';
-import { angleGap, inRing, laneCoords, pathMask, polar, polarNoise } from './shapes';
+import { crisp, edgeJitter, flecks, patches } from './ground';
+import { angleGap, battlefieldRelief, inRing, laneCoords, pathDistance, pathMask, polar, polarNoise } from './shapes';
 
 /** Land bridges to the island, in degrees (0 = bottom of the screen). Gates sit at their far ends. */
 export const ISLE_BRIDGES = [100, 205, 315];
@@ -12,6 +14,9 @@ const BRIDGE_HALF = 4.5;
 const WATER_LEVEL = -0.7;
 const LAKE_FLOOR = -4;
 const DEG = 180 / Math.PI;
+/** Dirt paths in the ground colour: half width, and the radius of the core's clearing. */
+const PATH_HALF = 1.9;
+const CLEARING = 10.5;
 
 /** Little rock islands out in the lake, each crowned with a crystal. */
 const ISLETS = [
@@ -24,9 +29,12 @@ const ISLETS = [
 
 const COL = {
   grass: 0x6f9c48,
-  grassDark: 0x5b8a3d,
+  grassDark: 0x587f3a,
+  grassDeep: 0x4c7238,
   grassLight: 0x8dae58,
+  grassTrodden: 0x7f9348,
   dirt: 0xab7c4e,
+  dirtLight: 0xb98b5a,
   dirtDark: 0x8f6541,
   bank: 0x76603f,
   sand: 0xb9a676,
@@ -64,12 +72,18 @@ export class LakeIsles implements Biome {
     const ir = this.islandRadius(theta);
     const or = this.shoreRadius(theta);
     const bed = LAKE_FLOOR + fbm(x * 0.05, z * 0.05, 3, 5) * 1.5;
-    const land = (fbm(x * 0.06, z * 0.06, 3, 3) - 0.5) * 0.5 * smoothstep(22, 26, r);
-    const hills = 0.35 + smoothstep(or + 4, or + 30, r) * fbm(x * 0.03, z * 0.03, 3, 9) * 8;
+    const lateral = this.bridgeLateral(x, z, ir, or);
+    // Ground eases flat where it meets a bridge, so the decks join cleanly.
+    const nearBridge = 1 - smoothstep(BRIDGE_HALF, BRIDGE_HALF + 6, lateral);
+    // Trodden paths sit slightly sunken, so their edges form soft banks that catch the light.
+    const trodden = pathMask(x, z, ISLE_BRIDGES, 1.8, 11, 71) * smoothstep(10, 14, r);
+    const land = battlefieldRelief(x, z, 3, 1.3) * (1 - smoothstep(ir - 8, ir - 2, r) * nearBridge) - trodden * 0.35;
+    // The far shore rises as a short cliff bank, then into wooded hills.
+    const bank = 2.2 * smoothstep(or - 0.5, or + 1.8, r) * (1 - nearBridge);
+    const hills = 0.35 + bank + smoothstep(or + 3, or + 28, r) * (fbm(x * 0.03, z * 0.03, 3, 9) * 13 + fbm(x * 0.09, z * 0.09, 2, 11) * 2);
 
     let h = lerp(land, bed, smoothstep(ir - 0.5, ir + 2.5, r));
     h = lerp(h, hills, smoothstep(or - 3, or + 0.5, r));
-    const lateral = this.bridgeLateral(x, z, ir, or);
     if (lateral < BRIDGE_HALF + 3) h = Math.max(h, lerp(0.05, bed, smoothstep(BRIDGE_HALF, BRIDGE_HALF + 2.2, lateral)));
     for (const i of ISLETS) {
       const d = Math.hypot(x - i.x, z - i.z);
@@ -92,12 +106,27 @@ export class LakeIsles implements Biome {
       out.setHex(COL.sand).lerp(tmp.setHex(COL.lakebed), smoothstep(WATER_LEVEL + 0.2, LAKE_FLOOR + 1, h));
       return;
     }
-    out.setHex(COL.grass).lerp(tmp.setHex(COL.grassDark), smoothstep(0.35, 0.65, fbm(x * 0.035, z * 0.035, 3, 13)));
-    out.lerp(tmp.setHex(COL.grassLight), smoothstep(0.58, 0.72, fbm(x * 0.06 + 9, z * 0.06, 2, 17)) * 0.7);
-    const dirt = this.paths(x, z);
-    if (dirt > 0) out.lerp(tmp.setHex(COL.dirt).lerp(tmp2.setHex(COL.dirtDark), fbm(x * 0.2, z * 0.2, 2, 19) * 0.8), dirt);
-    // Exposed earth on the banks.
-    out.lerp(tmp.setHex(COL.bank), smoothstep(0.18, 0.4, slope));
+    // Meadow: a mid green with crisp darker and lighter patches, and the odd fleck of colour.
+    out.setHex(COL.grass);
+    out.lerp(tmp.setHex(COL.grassDark), patches(x, z, 0.04, 0.45, 13));
+    out.lerp(tmp.setHex(COL.grassDeep), patches(x, z, 0.08, 0.18, 15) * 0.7);
+    out.lerp(tmp.setHex(COL.grassLight), patches(x, z, 0.1, 0.22, 17) * 0.6);
+    out.lerp(tmp.setHex(COL.grassLight), flecks(x, z, 0.12, 19) * 0.5);
+
+    // Dirt paths and the core's clearing, with clean wobbly edges and a trampled verge.
+    const jitter = edgeJitter(x, z, 0.45, 5);
+    const r = Math.hypot(x, z);
+    const edge = Math.min(pathDistance(x, z, ISLE_BRIDGES, 8, 71) - PATH_HALF, r - CLEARING) + jitter;
+    if (edge < 0.9) {
+      out.lerp(tmp.setHex(COL.grassTrodden), crisp(-edge, -0.9) * 0.6);
+      tmp.setHex(COL.dirt).lerp(tmp2.setHex(COL.dirtLight), patches(x, z, 0.12, 0.35, 21));
+      tmp.lerp(tmp2.setHex(COL.dirtDark), Math.max(flecks(x, z, 0.1, 23) * 0.6, crisp(edge, -0.35)));
+      out.lerp(tmp, crisp(-edge, 0));
+    }
+    // Exposed earth on the banks, and a strip of beach at the waterline.
+    out.lerp(tmp.setHex(COL.bank), crisp(slope + jitter * 0.05, 0.26, 0.03));
+    const theta = Math.atan2(x, z);
+    if (r > this.islandRadius(theta) - 4 || r > this.shoreRadius(theta) - 4) out.lerp(tmp.setHex(COL.sand), crisp(WATER_LEVEL + 0.55 - jitter * 0.3, h));
   }
 
   decorate(ctx: DecorContext): void {
@@ -132,13 +161,20 @@ export class LakeIsles implements Biome {
       else roundTree(ctx, p.x, y, p.z, s);
       ctx.block(p.x, p.z, 0.7);
     }
-    for (let i = 0; i < 260; i++) {
-      const p = inRing(rnd, 55, 100);
-      if (p.r < this.shoreRadius(p.theta) + 1 || this.paths(p.x, p.z) > 0.2) continue;
-      const y = heightAt(p.x, p.z);
-      if (rnd() < 0.6) bush(ctx, p.x, y, p.z, 1 + rnd() * 0.5);
-      else fern(ctx, p.x, y, p.z, 1);
-    }
+    scatterClutter(ctx, {
+      count: 2600, rMin: 48, rMax: 90, seed: 47, clustering: 0.5,
+      density: (x, z) => (Math.hypot(x, z) < this.shoreRadius(Math.atan2(x, z)) + 1 || this.paths(x, z) > 0.2 ? 0 : 1),
+      kinds: [
+        { weight: 4, place: (c, x, y, z) => bush(c, x, y, z, 1 + rnd() * 0.6) },
+        { weight: 3, place: (c, x, y, z) => fern(c, x, y, z, 1 + rnd() * 0.3) },
+        { weight: 2, place: (c, x, y, z) => grassTuft(c, x, y, z, 1.1) },
+        { weight: 2, place: (c, x, y, z) => pebbles(c, x, y, z, 1.4) },
+        { weight: 1, place: (c, x, y, z) => log(c, x, y, z, 2 + rnd() * 2) },
+        { weight: 0.8, place: (c, x, y, z) => stump(c, x, y, z, 1.2) },
+        { weight: 0.8, place: (c, x, y, z) => boulder(c, x, y, z, 0.5 + rnd() * 0.7, undefined, false) },
+        { weight: 0.8, place: (c, x, y, z) => flowers(c, x, y, z) },
+      ],
+    });
     // A few big grey outcrops in the woods.
     for (let i = 0; i < 7; i++) {
       const p = inRing(rnd, 62, 95);
@@ -148,37 +184,52 @@ export class LakeIsles implements Biome {
     }
   }
 
-  /** Light dressing on the island: shrubs, ferns, flowers and a few trees, all clear of the paths. */
+  /** Off the paths, inside the island's shoreline. */
+  private islandGround(x: number, z: number, margin: number): number {
+    const r = Math.hypot(x, z);
+    if (r < CLEARING + 1 || r > this.islandRadius(Math.atan2(x, z)) - margin) return 0;
+    return pathDistance(x, z, ISLE_BRIDGES, 8, 71) > PATH_HALF + 0.7 ? 1 : 0;
+  }
+
+  /** Trees round the island's rim, and dense small clutter over the meadow. */
   private island(ctx: DecorContext): void {
     const { rnd, heightAt } = ctx;
-    const spot = (rMin: number, margin: number): { x: number; y: number; z: number } | null => {
-      const p = inRing(rnd, rMin, 34);
-      if (p.r > this.islandRadius(p.theta) - margin || this.paths(p.x, p.z) > 0.1) return null;
-      return { x: p.x, y: heightAt(p.x, p.z), z: p.z };
-    };
-    for (let i = 0; i < 14; i++) {
-      const s = spot(23, 2.5);
-      if (s) {
-        roundTree(ctx, s.x, s.y, s.z, 0.9 + rnd() * 0.3);
-        ctx.block(s.x, s.z, 0.8);
-      }
+    for (let i = 0; i < 70; i++) {
+      const p = inRing(rnd, 22, 34);
+      if (!this.islandGround(p.x, p.z, 2.5) || fbm(p.x * 0.08, p.z * 0.08, 2, 31) < 0.5) continue;
+      const y = heightAt(p.x, p.z);
+      if (rnd() < 0.6) pine(ctx, p.x, y, p.z, 0.8 + rnd() * 0.4);
+      else roundTree(ctx, p.x, y, p.z, 0.85 + rnd() * 0.3);
+      ctx.block(p.x, p.z, 0.8);
     }
-    for (let i = 0; i < 150; i++) {
-      const s = spot(11, 1.2);
-      if (!s) continue;
-      const roll = rnd();
-      if (roll < 0.35) bush(ctx, s.x, s.y, s.z);
-      else if (roll < 0.6) fern(ctx, s.x, s.y, s.z, 0.8);
-      else flowers(ctx, s.x, s.y, s.z);
-    }
-    for (let i = 0; i < 40; i++) {
-      const s = spot(14, 1);
-      if (s) boulder(ctx, s.x, s.y, s.z, 0.2 + rnd() * 0.35);
-    }
-    for (let i = 0; i < 4; i++) {
-      const s = spot(23, 2);
-      if (s) log(ctx, s.x, s.y, s.z, 2 + rnd() * 1.5);
-    }
+    // The build area keeps to low clutter that a structure's base covers.
+    scatterClutter(ctx, {
+      count: 750, rMin: 11, rMax: 24, seed: 41, clustering: 0.85,
+      density: (x, z) => this.islandGround(x, z, 1),
+      kinds: [
+        { weight: 2, place: (c, x, y, z) => pebbles(c, x, y, z, 0.8 + rnd() * 0.6) },
+        { weight: 5, place: (c, x, y, z) => grassTuft(c, x, y, z, 0.8 + rnd() * 0.5) },
+        { weight: 1, place: (c, x, y, z) => flowers(c, x, y, z) },
+        { weight: 2, place: (c, x, y, z) => fern(c, x, y, z, 0.6 + rnd() * 0.2) },
+        { weight: 2, place: (c, x, y, z) => bush(c, x, y, z, 0.7 + rnd() * 0.3) },
+        { weight: 0.6, place: (c, x, y, z) => branch(c, x, y, z, 1 + rnd() * 0.8) },
+      ],
+    });
+    scatterClutter(ctx, {
+      count: 1300, rMin: 22, rMax: 36, seed: 43, clustering: 0.85,
+      density: (x, z) => this.islandGround(x, z, 1),
+      kinds: [
+        { weight: 1.5, place: (c, x, y, z) => pebbles(c, x, y, z, 1 + rnd() * 0.8) },
+        { weight: 3, place: (c, x, y, z) => grassTuft(c, x, y, z, 0.9 + rnd() * 0.5) },
+        { weight: 3, place: (c, x, y, z) => bush(c, x, y, z, 0.9 + rnd() * 0.6) },
+        { weight: 2.5, place: (c, x, y, z) => fern(c, x, y, z, 0.8 + rnd() * 0.3) },
+        { weight: 0.8, place: (c, x, y, z) => flowers(c, x, y, z) },
+        { weight: 1, place: (c, x, y, z) => boulder(c, x, y, z, 0.3 + rnd() * 0.45, undefined, false) },
+        { weight: 0.8, place: (c, x, y, z) => branch(c, x, y, z, 1.2 + rnd()) },
+        { weight: 0.4, place: (c, x, y, z) => log(c, x, y, z, 2 + rnd() * 1.5) },
+        { weight: 0.3, place: (c, x, y, z) => stump(c, x, y, z) },
+      ],
+    });
   }
 
   /** Grey rocks along both shores and lining the bridges. */

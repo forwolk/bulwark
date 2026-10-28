@@ -245,3 +245,70 @@ export function crystal(c: Ctx, x: number, y: number, z: number, s: number, colo
   c.occlude(x, z, 0.9 * s, 0.5);
   c.block(x, z, 0.9 * s);
 }
+
+/** A little group of pebbles, half sunk into the ground. */
+export function pebbles(c: Ctx, x: number, y: number, z: number, s = 1, colors = NATURE.rock): void {
+  const { builder: b, rnd } = c;
+  const n = 1 + Math.floor(rnd() * 3);
+  for (let i = 0; i < n; i++) {
+    const r = (0.12 + rnd() * 0.16) * s;
+    const a = rnd() * TAU;
+    const d = i === 0 ? 0 : (0.25 + rnd() * 0.3) * s;
+    b.dodeca(r, shade(pick(rnd, colors), 0.9 + rnd() * 0.2), {
+      p: [x + Math.sin(a) * d, y + r * 0.2, z + Math.cos(a) * d],
+      s: [1, 0.55 + rnd() * 0.3, 0.8 + rnd() * 0.4],
+      r: [0, rnd() * TAU, 0],
+    });
+  }
+}
+
+/** Upright clump of grass blades. */
+export function grassTuft(c: Ctx, x: number, y: number, z: number, s = 1, colors = NATURE.bush): void {
+  const { rnd } = c;
+  const col = pick(rnd, colors);
+  const n = 5 + Math.floor(rnd() * 4);
+  for (let i = 0; i < n; i++) {
+    const yaw = rnd() * TAU;
+    blade(c, x + (rnd() - 0.5) * 0.25 * s, y - 0.02, z + (rnd() - 0.5) * 0.25 * s, (0.4 + rnd() * 0.35) * s, 0.06 * s, yaw, 0.15 + rnd() * 0.45, shade(col, 0.85 + rnd() * 0.3), 0.5);
+  }
+}
+
+/** Fallen branch with a side twig, lying in the grass. */
+export function branch(c: Ctx, x: number, y: number, z: number, length: number, color = NATURE.log): void {
+  const { builder: b, rnd } = c;
+  const yaw = rnd() * TAU;
+  const r = 0.07 + rnd() * 0.05;
+  b.cyl(r * 0.7, r, length, 5, color, { p: [x, y + r * 0.8, z], r: [0, yaw - Math.PI / 2, Math.PI / 2] });
+  const t = (rnd() - 0.5) * length * 0.5;
+  const fx = x + Math.sin(yaw) * t;
+  const fz = z + Math.cos(yaw) * t;
+  const twigYaw = yaw + (rnd() < 0.5 ? 0.6 : -0.6);
+  const twig = length * (0.3 + rnd() * 0.2);
+  b.cyl(r * 0.4, r * 0.6, twig, 4, color, {
+    p: [fx + Math.sin(twigYaw) * twig * 0.5, y + r * 0.8, fz + Math.cos(twigYaw) * twig * 0.5],
+    r: [0, twigYaw - Math.PI / 2, Math.PI / 2],
+  });
+  c.occlude(x, z, length * 0.3, 0.25);
+}
+
+/** Flat paving stone flush with the ground: old flagstones, stepping stones. */
+export function paver(c: Ctx, x: number, y: number, z: number, size: number, colors = NATURE.rock): void {
+  const { builder: b, rnd } = c;
+  const h = 0.12 + rnd() * 0.08;
+  b.cyl(size * 0.94, size, h, 5 + Math.floor(rnd() * 2), shade(pick(rnd, colors), 0.9 + rnd() * 0.15), {
+    p: [x, y + h * 0.3, z],
+    r: [(rnd() - 0.5) * 0.08, rnd() * TAU, (rnd() - 0.5) * 0.08],
+    s: [1, 1, 0.7 + rnd() * 0.3],
+  });
+  c.occlude(x, z, size * 0.9, 0.25);
+}
+
+/** Cut tree stump with a pale top. */
+export function stump(c: Ctx, x: number, y: number, z: number, s = 1): void {
+  const { builder: b, rnd } = c;
+  const h = (0.35 + rnd() * 0.3) * s;
+  const r = (0.28 + rnd() * 0.1) * s;
+  b.cyl(r, r * 1.25, h, 6, NATURE.log, { p: [x, y + h / 2 - 0.05, z] });
+  b.cyl(r * 0.85, r * 0.85, 0.03, 6, NATURE.logEnd, { p: [x, y + h - 0.04, z] });
+  c.occlude(x, z, r * 2, 0.5);
+}

@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { clamp, lerp, smoothstep, TAU } from '../../core/math';
 import { Water } from '../../world/features/Water';
 import { fbm } from '../../world/Noise';
-import { boulder, bush, cairn, crystal, fern, flowers, menhir, pine, root, roundTree, slab } from '../props';
+import { scatterClutter } from '../clutter';
+import { boulder, branch, bush, cairn, crystal, fern, flowers, grassTuft, menhir, paver, pebbles, pine, root, roundTree, slab } from '../props';
 import type { Biome, DecorContext } from '../types';
-import { angleGap, inRing, laneCoords, laneMask, polar, polarNoise } from './shapes';
+import { crisp, edgeJitter, flecks, patches } from './ground';
+import { angleGap, battlefieldRelief, inRing, laneCoords, laneMask, pathDistance, polar, polarNoise } from './shapes';
 
 /** Dirt ramps down the terraces, in degrees. Gates sit on the rim above each. */
 export const HOLLOW_RAMPS = [20, 110, 200, 290];
@@ -34,17 +36,20 @@ const COL = {
   grass: 0x76a04a,
   grassDark: 0x5e8a3c,
   grassLight: 0x93b65a,
+  moss: 0x587d3c,
   stone: [0xa3a29b, 0x8f8e88, 0xb2b1aa],
   dirt: 0xa07850,
   dirtStep: 0x87623f,
   soil: 0x5a5040,
   menhir: 0xc9b58e,
+  paving: [0x5d605c, 0x686b66, 0x535652],
   pink: [0xd2557a, 0xe0708f, 0xbd4a6c],
   crystal: [0xffa040, 0x7dff6a],
   rootWood: 0x6e5a3c,
 };
 
 const tmp = new THREE.Color();
+const tmp2 = new THREE.Color();
 
 /**
  * A green hollow ringed by grey stone terraces and old standing stones. Ground units must come
@@ -93,6 +98,7 @@ export class RuinedHollow implements Biome {
       const edge = this.tierEdge(theta, k);
       h += TIER_HEIGHT * smoothstep(edge - 0.6, edge + 0.6, rn);
     }
+    h += battlefieldRelief(x, z, 47) * (1 - smoothstep(this.floorRadius(theta) - 1, this.floorRadius(theta) + 2, r));
     h += (fbm(x * 0.1, z * 0.1, 2, 47) - 0.5) * 0.3 * smoothstep(this.floorRadius(theta) - 8, this.floorRadius(theta), r);
     const crest = this.crest(theta);
     if (r > crest) h -= Math.min(6, (r - crest) * 0.15);
@@ -131,14 +137,25 @@ export class RuinedHollow implements Biome {
         const c = laneCoords(x, z, a);
         return c.lateral < best.lateral ? c : best;
       }, { along: 0, lateral: Infinity }).along;
-      out.setHex(COL.grass).lerp(tmp.setHex(along % 2.6 < 0.5 ? COL.dirtStep : COL.dirt), this.rampMask(x, z));
+      const step = 1 - crisp(((along % 2.6) + 2.6) % 2.6, 0.5, 0.08);
+      out.setHex(COL.grass).lerp(tmp.setHex(COL.dirt).lerp(tmp2.setHex(COL.dirtStep), step), this.rampMask(x, z));
       return;
     }
-    out.setHex(COL.grass).lerp(tmp.setHex(COL.grassDark), smoothstep(0.38, 0.66, fbm(x * 0.04, z * 0.04, 3, 51)));
-    out.lerp(tmp.setHex(COL.grassLight), smoothstep(0.58, 0.72, fbm(x * 0.07 + 4, z * 0.07, 2, 53)) * 0.6);
-    // Worn ground at the foot of each ramp and around the core.
-    const worn = Math.max(1 - smoothstep(9.5, 11.5, r), laneMask(x, z, HOLLOW_RAMPS, 1.6, 1.5, 9) * (1 - smoothstep(this.floorRadius(Math.atan2(x, z)) - 4, this.floorRadius(Math.atan2(x, z)), r)) * 0.8);
-    out.lerp(tmp.setHex(COL.dirt), worn);
+    out.setHex(COL.grass);
+    out.lerp(tmp.setHex(COL.grassDark), patches(x, z, 0.045, 0.45, 51));
+    out.lerp(tmp.setHex(COL.moss), patches(x, z, 0.09, 0.15, 55) * 0.8);
+    out.lerp(tmp.setHex(COL.grassLight), patches(x, z, 0.1, 0.2, 53) * 0.6);
+    out.lerp(tmp.setHex(COL.grassLight), flecks(x, z, 0.12, 57) * 0.4);
+    // Worn ground around the core and leading to each ramp, with crisp edges.
+    const theta = Math.atan2(x, z);
+    const jitter = edgeJitter(x, z, 0.45, 59);
+    const toRamp = r < this.floorRadius(theta) - 1 ? pathDistance(x, z, HOLLOW_RAMPS, 9, 67) - 1.7 : Infinity;
+    const edge = Math.min(r - 10.5, toRamp) + jitter;
+    if (edge < 0.9) {
+      out.lerp(tmp.setHex(COL.grassDark), crisp(-edge, -0.9) * 0.4);
+      tmp.setHex(COL.dirt).lerp(tmp2.setHex(COL.dirtStep), Math.max(flecks(x, z, 0.12, 61) * 0.6, crisp(edge, -0.35)));
+      out.lerp(tmp, crisp(-edge, 0));
+    }
   }
 
   decorate(ctx: DecorContext): void {
@@ -153,6 +170,7 @@ export class RuinedHollow implements Biome {
     this.stoneCircles(ctx);
     this.floor(ctx);
     this.woods(ctx);
+    this.undergrowth(ctx);
     this.rampCairns(ctx);
   }
 
@@ -204,18 +222,49 @@ export class RuinedHollow implements Biome {
   /** Pink-leaved plants, ferns, roots, flowers and crystals on the hollow floor. */
   private floor(ctx: DecorContext): void {
     const { rnd, heightAt, isWalkable } = ctx;
-    for (let i = 0; i < 220; i++) {
-      const p = inRing(rnd, 12, 52);
-      if (!isWalkable(p.x, p.z) && p.r < this.floorRadius(p.theta)) continue;
-      if (this.ravineDistance(p.x, p.z) < 1.4 || this.rampMask(p.x, p.z) > 0) continue;
-      if (p.r < 22 && rnd() < 0.5) continue;
-      const y = heightAt(p.x, p.z);
-      const roll = rnd();
-      if (roll < 0.3) fern(ctx, p.x, y, p.z, 0.8 + rnd() * 0.3, COL.pink, 5, 0.9);
-      else if (roll < 0.5) fern(ctx, p.x, y, p.z, 0.9);
-      else if (roll < 0.7) bush(ctx, p.x, y, p.z);
-      else if (roll < 0.85) flowers(ctx, p.x, y, p.z);
-      else boulder(ctx, p.x, y, p.z, 0.25 + rnd() * 0.4, COL.stone);
+    const onFloor = (x: number, z: number): number => {
+      const r = Math.hypot(x, z);
+      if (r < 11.5 || r > this.floorRadius(Math.atan2(x, z)) - 1 || !isWalkable(x, z)) return 0;
+      if (this.ravineDistance(x, z) < 1.4 || this.rampMask(x, z) > 0) return 0;
+      return pathDistance(x, z, HOLLOW_RAMPS, 9, 67) > 2.5 ? 1 : 0;
+    };
+    const pink = (c: DecorContext, x: number, y: number, z: number, s: number): void => fern(c, x, y, z, s, COL.pink, 5, 0.9);
+    scatterClutter(ctx, {
+      count: 800, rMin: 11, rMax: 24, seed: 71, clustering: 0.85,
+      density: onFloor,
+      kinds: [
+        { weight: 5, place: (c, x, y, z) => grassTuft(c, x, y, z, 0.8 + rnd() * 0.5) },
+        { weight: 2, place: (c, x, y, z) => pebbles(c, x, y, z, 0.8 + rnd() * 0.6, COL.stone) },
+        { weight: 2, place: (c, x, y, z) => pink(c, x, y, z, 0.6 + rnd() * 0.2) },
+        { weight: 1.5, place: (c, x, y, z) => fern(c, x, y, z, 0.6 + rnd() * 0.2) },
+        { weight: 1, place: (c, x, y, z) => flowers(c, x, y, z) },
+        { weight: 0.25, place: (c, x, y, z) => paver(c, x, y, z, 0.6 + rnd() * 0.4, COL.paving) },
+      ],
+    });
+    scatterClutter(ctx, {
+      count: 1800, rMin: 22, rMax: 42, seed: 73, clustering: 0.85,
+      density: onFloor,
+      kinds: [
+        { weight: 4, place: (c, x, y, z) => grassTuft(c, x, y, z, 0.9 + rnd() * 0.5) },
+        { weight: 3, place: (c, x, y, z) => pink(c, x, y, z, 0.8 + rnd() * 0.3) },
+        { weight: 2.5, place: (c, x, y, z) => fern(c, x, y, z, 0.8 + rnd() * 0.3) },
+        { weight: 2.5, place: (c, x, y, z) => bush(c, x, y, z, 0.8 + rnd() * 0.5) },
+        { weight: 2, place: (c, x, y, z) => pebbles(c, x, y, z, 1 + rnd() * 0.8, COL.stone) },
+        { weight: 1, place: (c, x, y, z) => flowers(c, x, y, z) },
+        { weight: 1, place: (c, x, y, z) => boulder(c, x, y, z, 0.3 + rnd() * 0.4, COL.stone, false) },
+        { weight: 0.6, place: (c, x, y, z) => branch(c, x, y, z, 1.2 + rnd(), COL.rootWood) },
+      ],
+    });
+    // Patches of old dark flagstones, the remains of paved floors.
+    for (let i = 0; i < 14; i++) {
+      const p = inRing(rnd, 14, 32);
+      if (!onFloor(p.x, p.z)) continue;
+      const n = 4 + Math.floor(rnd() * 6);
+      for (let k = 0; k < n; k++) {
+        const x = p.x + (rnd() - 0.5) * 5;
+        const z = p.z + (rnd() - 0.5) * 5;
+        if (onFloor(x, z)) paver(ctx, x, heightAt(x, z), z, 0.55 + rnd() * 0.45, COL.paving);
+      }
     }
     for (let i = 0; i < 9; i++) {
       const p = inRing(rnd, 23, 33);
@@ -250,6 +299,23 @@ export class RuinedHollow implements Biome {
       else roundTree(ctx, p.x, y, p.z, s);
       ctx.block(p.x, p.z, 0.7);
     }
+  }
+
+  /** Undergrowth on the terraces and in the woods past the rim. */
+  private undergrowth(ctx: DecorContext): void {
+    const { rnd, isWalkable } = ctx;
+    scatterClutter(ctx, {
+      count: 3000, rMin: 36, rMax: 85, seed: 79, clustering: 0.5,
+      density: (x, z) => (Math.hypot(x, z) < this.floorRadius(Math.atan2(x, z)) + 2 || !isWalkable(x, z) || laneMask(x, z, HOLLOW_RAMPS, RAMP_HALF + 1, 0.1, 20) > 0.5 ? 0 : 1),
+      kinds: [
+        { weight: 4, place: (c, x, y, z) => bush(c, x, y, z, 1 + rnd() * 0.5) },
+        { weight: 3, place: (c, x, y, z) => fern(c, x, y, z, 1 + rnd() * 0.3) },
+        { weight: 2, place: (c, x, y, z) => fern(c, x, y, z, 1, COL.pink, 5, 0.9) },
+        { weight: 2, place: (c, x, y, z) => grassTuft(c, x, y, z, 1.1) },
+        { weight: 1.5, place: (c, x, y, z) => pebbles(c, x, y, z, 1.4, COL.stone) },
+        { weight: 0.8, place: (c, x, y, z) => branch(c, x, y, z, 1.5 + rnd(), COL.rootWood) },
+      ],
+    });
   }
 
   /** Little stone cairns marking both sides of each ramp. */

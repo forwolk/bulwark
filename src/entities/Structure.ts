@@ -11,7 +11,7 @@ export class Structure implements Damageable {
   readonly position = new THREE.Vector3();
   readonly radius: number;
   readonly isCore = false;
-  readonly aimHeight = 1.2;
+
   readonly rig: StructureRig;
   private readonly material: THREE.MeshStandardMaterial;
 
@@ -28,10 +28,10 @@ export class Structure implements Damageable {
   private flash = 0;
   private buildAnim = 0;
 
-  constructor(readonly def: StructureDef, x: number, z: number) {
+  constructor(readonly def: StructureDef, x: number, z: number, y = 0) {
     this.radius = def.radius;
     this.hp = this.maxHp = def.hp;
-    this.position.set(x, 0, z);
+    this.position.set(x, y, z);
     this.material = createFlashableBodyMaterial();
     this.rig = createStructureModel(def.kind, { body: this.material });
     this.rig.root.position.copy(this.position);
@@ -40,6 +40,11 @@ export class Structure implements Damageable {
 
   get alive(): boolean {
     return this.hp > 0;
+  }
+
+  /** Absolute height enemy shots aim at. */
+  get aimHeight(): number {
+    return this.position.y + 1.2;
   }
 
   takeDamage(amount: number): void {

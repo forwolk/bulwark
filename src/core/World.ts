@@ -91,6 +91,7 @@ export class World {
     const level = new Level(levelById(id));
     this.scene.add(level.root);
     this.arena.applyTheme(level.theme);
+    this.arena.conformToGround((x, z) => level.heightAt(x, z));
     this.renderer.webgl.toneMappingExposure = level.theme.exposure;
     this.renderer.setBloom(level.theme.bloom.threshold, level.theme.bloom.strength);
     this.effects.setGround(level);

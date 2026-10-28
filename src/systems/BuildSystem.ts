@@ -9,7 +9,7 @@ import { StructureManager, type PlacementError } from './StructureManager';
 
 const ERROR_TEXT: Record<Exclude<PlacementError, null>, string> = {
   range: 'Outside the build zone',
-  terrain: 'Blocked by terrain',
+  terrain: 'Ground too steep or blocked',
   occupied: 'Cell occupied',
   funds: 'Not enough scrap',
 };
@@ -29,7 +29,9 @@ export class BuildSystem {
   constructor(private readonly world: World) {
     const ringGeo = new THREE.RingGeometry(0.96, 1, 64);
     ringGeo.rotateX(-Math.PI / 2);
-    this.rangeRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(C.playerGlow).multiplyScalar(1.5), transparent: true, opacity: 0.5, depthWrite: false }));
+    // Range rings cross hills and hollows, so they draw on top instead of clipping into the ground.
+    this.rangeRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(C.playerGlow).multiplyScalar(1.5), transparent: true, opacity: 0.5, depthWrite: false, depthTest: false }));
+    this.rangeRing.renderOrder = 5;
     this.rangeRing.position.y = 0.1;
     this.rangeRing.visible = false;
     world.scene.add(this.rangeRing);
@@ -97,6 +99,7 @@ export class BuildSystem {
 
     const kind = this.selected;
     this.cell.set(StructureManager.snap(aimPoint.x), 0, StructureManager.snap(aimPoint.z));
+    this.cell.y = this.world.level.heightAt(this.cell.x, this.cell.z);
     this.error = structures.placementError(kind, this.cell.x, this.cell.z);
     const valid = this.error === null;
 
@@ -109,7 +112,7 @@ export class BuildSystem {
     const ring = STRUCTURES[kind].weapon?.range;
     this.rangeRing.visible = ring !== undefined;
     if (ring !== undefined) {
-      this.rangeRing.position.set(this.cell.x, 0.1, this.cell.z);
+      this.rangeRing.position.set(this.cell.x, this.cell.y + 0.1, this.cell.z);
       this.rangeRing.scale.setScalar(ring);
     }
 
@@ -133,7 +136,7 @@ export class BuildSystem {
     if (!s) return;
     this.hovered = s;
     this.hoverRing.visible = true;
-    this.hoverRing.position.set(s.position.x, 0.1, s.position.z);
+    this.hoverRing.position.set(s.position.x, s.position.y + 0.1, s.position.z);
     if (this.world.input.wasKeyPressed('KeyX')) {
       this.world.structures.sell(s);
       this.world.sfx.sell();

@@ -56,6 +56,11 @@ export function laneSide(x: number, z: number, angleDeg: number): number {
   return x * Math.cos(a) - z * Math.sin(a);
 }
 
+/** Lateral offset of a path's meandering centre line at distance `along` down the lane. */
+function pathWobble(along: number, angleDeg: number, seed: number): number {
+  return (fbm(along * 0.07, angleDeg, 2, seed) - 0.5) * 5;
+}
+
 /**
  * 1 on a winding path that follows a radial lane out from `start`, 0 off it.
  * The centre line meanders with noise so paths look trodden rather than ruled.
@@ -65,9 +70,32 @@ export function pathMask(x: number, z: number, anglesDeg: readonly number[], hal
   for (const a of anglesDeg) {
     const { along } = laneCoords(x, z, a);
     if (along < start) continue;
-    const wobble = (fbm(along * 0.07, a, 2, seed) - 0.5) * 5;
-    const side = Math.abs(laneSide(x, z, a) - wobble);
+    const side = Math.abs(laneSide(x, z, a) - pathWobble(along, a, seed));
     best = Math.max(best, (1 - smoothstep(halfWidth, halfWidth + 1.2, side)) * smoothstep(start, start + 2, along));
   }
   return best;
+}
+
+/** Distance from the centre line of the nearest winding path (same paths as `pathMask`), or Infinity. */
+export function pathDistance(x: number, z: number, anglesDeg: readonly number[], start: number, seed: number): number {
+  let best = Infinity;
+  for (const a of anglesDeg) {
+    const { along } = laneCoords(x, z, a);
+    if (along < start) continue;
+    best = Math.min(best, Math.abs(laneSide(x, z, a) - pathWobble(along, a, seed)));
+  }
+  return best;
+}
+
+/**
+ * Rolling ground for the battlefield: flat on the core's pad, gentle swells across the build
+ * area, fuller undulation and the odd knoll beyond it. Gradients stay well under the walkable
+ * limit, so this never blocks a path. `outer` scales the relief outside the build area.
+ */
+export function battlefieldRelief(x: number, z: number, seed: number, outer = 1): number {
+  const r = Math.hypot(x, z);
+  const swell = fbm(x * 0.055, z * 0.055, 3, seed) - 0.5;
+  const knoll = Math.max(0, fbm(x * 0.11 + 3, z * 0.11, 2, seed + 7) - 0.55) * 4;
+  const amplitude = 0.7 + (1.6 * outer - 0.7) * smoothstep(16, 28, r);
+  return smoothstep(8.5, 14, r) * (swell * amplitude + knoll * smoothstep(14, 22, r) * outer);
 }

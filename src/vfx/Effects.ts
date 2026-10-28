@@ -364,10 +364,10 @@ export class Effects {
 
   /** Dust burst + ring when a structure is placed. */
   structurePlaced(pos: THREE.Vector3): void {
-    this.rings.spawn({ x: pos.x, y: 0.12, z: pos.z, life: 0.45, size: 0.4, sizeEnd: 2.6, color: hdr(C.playerGlow, 3), colorEnd: BLACK, curve: 'easeOut' });
+    this.rings.spawn({ x: pos.x, y: pos.y + 0.12, z: pos.z, life: 0.45, size: 0.4, sizeEnd: 2.6, color: hdr(C.playerGlow, 3), colorEnd: BLACK, curve: 'easeOut' });
     for (let i = 0; i < 10; i++) {
       const a = (i / 10) * TAU;
-      this.puffs.spawn({ x: pos.x + Math.cos(a) * 1.1, y: 0.3, z: pos.z + Math.sin(a) * 1.1, vx: Math.cos(a) * 3, vy: rand(0.5, 1.5), vz: Math.sin(a) * 3, life: rand(0.5, 0.9), size: rand(0.3, 0.55), sizeEnd: 0, color: this.dust, colorEnd: this.dustDark, drag: 3, spin: 2, curve: 'pop' });
+      this.puffs.spawn({ x: pos.x + Math.cos(a) * 1.1, y: pos.y + 0.3, z: pos.z + Math.sin(a) * 1.1, vx: Math.cos(a) * 3, vy: rand(0.5, 1.5), vz: Math.sin(a) * 3, life: rand(0.5, 0.9), size: rand(0.3, 0.55), sizeEnd: 0, color: this.dust, colorEnd: this.dustDark, drag: 3, spin: 2, curve: 'pop' });
     }
     this.glows.spawn(pos.clone().setY(1), 3.5, 2, hdr(C.playerGlow, 0.4), 0.3);
   }

@@ -79,20 +79,19 @@ export class Arena {
     this.buildZoneMaterials.push(fill, edge, dots);
 
     const { buildMinRadius: rMin, buildMaxRadius: rMax, gridSize } = ARENA;
-    const disc = new THREE.Mesh(new THREE.RingGeometry(rMin, rMax, 72), fill);
-    const outer = new THREE.Mesh(new THREE.RingGeometry(rMax - 0.1, rMax + 0.1, 96), edge);
-    const inner = new THREE.Mesh(new THREE.RingGeometry(rMin - 0.06, rMin + 0.06, 48), edge);
-    for (const m of [disc, outer, inner]) {
-      m.rotation.x = -Math.PI / 2;
-      m.position.y = 0.2;
-      this.buildZone.add(m);
-    }
+    // Geometry is baked flat (rotation applied) so conformToGround can lift each vertex onto the terrain.
+    const ring = (r0: number, r1: number, segments: number, rings: number): THREE.BufferGeometry =>
+      new THREE.RingGeometry(r0, r1, segments, rings).rotateX(-Math.PI / 2);
+    const disc = new THREE.Mesh(ring(rMin, rMax, 96, 12), fill);
+    const outer = new THREE.Mesh(ring(rMax - 0.1, rMax + 0.1, 128, 1), edge);
+    const inner = new THREE.Mesh(ring(rMin - 0.06, rMin + 0.06, 64, 1), edge);
+    this.buildZone.add(disc, outer, inner);
 
     const points: number[] = [];
     for (let x = -rMax; x <= rMax; x += gridSize) {
       for (let z = -rMax; z <= rMax; z += gridSize) {
         const d = Math.hypot(x, z);
-        if (d >= rMin && d <= rMax) points.push(x, 0.22, z);
+        if (d >= rMin && d <= rMax) points.push(x, 0, z);
       }
     }
     const geo = new THREE.BufferGeometry();
@@ -101,6 +100,18 @@ export class Arena {
 
     this.buildZone.visible = false;
     this.scene.add(this.buildZone);
+  }
+
+  /** Drapes the build-zone overlay over the current level's ground. */
+  conformToGround(heightAt: (x: number, z: number) => number): void {
+    this.buildZone.traverse((o) => {
+      if (!(o instanceof THREE.Mesh || o instanceof THREE.Points)) return;
+      const pos = o.geometry.attributes.position as THREE.BufferAttribute;
+      const lift = o instanceof THREE.Points ? 0.24 : 0.18;
+      for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)) + lift);
+      pos.needsUpdate = true;
+      o.geometry.computeBoundingSphere();
+    });
   }
 
   setBuildZoneVisible(visible: boolean): void {

@@ -65,7 +65,7 @@ export class WorldOverlay {
 
     if (playing) {
       for (const s of structures.all) {
-        if (s.hp < s.maxHp && this.placeBar(used, tmp.set(s.position.x, 2.8, s.position.z), s.hp / s.maxHp, 38, 'ally')) used++;
+        if (s.hp < s.maxHp && this.placeBar(used, tmp.set(s.position.x, s.position.y + 2.8, s.position.z), s.hp / s.maxHp, 38, 'ally')) used++;
       }
       for (const a of this.world.squads.all) {
         if (!a.alive || a.hp >= a.maxHp) continue;
