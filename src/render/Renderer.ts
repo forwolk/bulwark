@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { setBodyEnvironment } from './Materials';
 import { SanitizeShader } from './SanitizeShader';
 import { RENDER } from '../config/graphics';
 
@@ -32,6 +34,10 @@ export class Renderer {
     this.webgl.toneMapping = THREE.ACESFilmicToneMapping;
     this.webgl.toneMappingExposure = 1.1;
     container.appendChild(this.webgl.domElement);
+    // A neutral studio environment, prefiltered once: bare-metal parts on units reflect it.
+    const pmrem = new THREE.PMREMGenerator(this.webgl);
+    setBodyEnvironment(pmrem.fromScene(new RoomEnvironment(), 0.04).texture);
+    pmrem.dispose();
 
     const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: RENDER.msaaSamples });
     this.composer = new EffectComposer(this.webgl, target);

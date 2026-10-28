@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { PALETTE as C } from '../../config/palette';
 import type { SquadKind } from '../../config/squads';
+import { Finish } from '../Materials';
 import { buildPart, type ModelBuilder, type PartMaterials } from '../ModelBuilder';
+import { barrel, bolts, cable, lamp, piston, vent } from './greebles';
 
 export interface AllyRig {
   root: THREE.Group;
@@ -75,8 +77,26 @@ const sentinel: RigFactory = (m) => {
     for (const s of [-1, 1]) {
       b.bevelBox(0.24, 0.26, 0.62, 0.07, DARK, { p: [s * 0.56, 0.12, 0.12] });
       b.box(0.25, 0.05, 0.3, AMBER, { p: [s * 0.56, 0.26, 0.05] });
-      b.strut([s * 0.56, 0.1, 0.4], [s * 0.56, 0.1, 0.78], 0.065, 0.06, 6, STEEL);
-      b.cyl(0.075, 0.075, 0.05, 6, GLOW, { p: [s * 0.56, 0.1, 0.8], r: [Math.PI / 2, 0, 0], glow: true });
+      barrel(b, [s * 0.56, 0.1, 0.4], 0.4, 0.06, STEEL, 2);
+      b.cyl(0.05, 0.05, 0.05, 6, GLOW, { p: [s * 0.56, 0.1, 0.82], r: [Math.PI / 2, 0, 0], glow: true });
+      // Pod mount, feed cable and a heat sink on the outside of each pod.
+      b.bevelBox(0.18, 0.16, 0.3, 0.04, STEEL, { p: [s * 0.4, 0.16, 0.02], finish: Finish.Metal });
+      cable(b, [[s * 0.3, 0.3, -0.25], [s * 0.5, 0.32, -0.28], [s * 0.6, 0.22, -0.12]], 0.025, DARK);
+      for (const z of [-0.05, 0.05, 0.15, 0.25]) b.box(0.04, 0.2, 0.03, STEEL, { p: [s * 0.69, 0.12, z], finish: Finish.Metal });
+      // Armoured side skirt with rivets.
+      b.bevelBox(0.07, 0.24, 0.62, 0.025, STEEL, { p: [s * 0.47, 0.17, -0.05] });
+      bolts(b, [s * 0.505, 0.24, -0.28], [s * 0.505, 0.24, 0.18], 4, 0.022, DARK, 'x');
+    }
+    // Sensor cluster under the visor.
+    lamp(b, [0.13, 0.12, 0.47], 0.04, DARK, GLOW);
+    lamp(b, [-0.13, 0.12, 0.47], 0.04, DARK, GLOW);
+    lamp(b, [0, 0.1, 0.47], 0.03, DARK, AMBER);
+    // Top hatch with a grab handle, and radial stabiliser fins under the hull.
+    b.bevelBox(0.3, 0.04, 0.24, 0.02, STEEL, { p: [0.05, 0.63, -0.04] });
+    b.strut([-0.05, 0.66, -0.12], [-0.05, 0.66, 0.04], 0.012, 0.012, 4, AMBER, false, Finish.Metal);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+      b.box(0.035, 0.12, 0.2, DARK, { p: [Math.sin(a) * 0.43, -0.12, Math.cos(a) * 0.43], r: [0, a, 0] });
     }
     // Thruster ring and glow disc underneath.
     b.torus(0.34, 0.05, GLOW, { p: [0, -0.13, 0], r: [Math.PI / 2, 0, 0], glow: true }, 14);
@@ -107,6 +127,29 @@ const lancer: RigFactory = (m) => {
     // Backpack.
     b.bevelBox(0.66, 0.55, 0.32, 0.08, DARK, { p: [0, 0.25, -0.46] });
     for (const x of [-0.18, 0.18]) b.box(0.12, 0.3, 0.04, GLOW, { p: [x, 0.25, -0.63], glow: true });
+    // Exhaust stacks and power cables from the backpack to the lance.
+    for (const x of [-0.22, -0.06]) {
+      b.strut([x, 0.45, -0.52], [x, 0.85, -0.56], 0.05, 0.05, 6, STEEL, false, Finish.Metal);
+      b.cyl(0.065, 0.065, 0.06, 6, DARK, { p: [x, 0.87, -0.56] });
+    }
+    cable(b, [[0.22, 0.4, -0.6], [0.42, 0.42, -0.62], [0.5, 0.55, -0.45], [0.48, 0.62, -0.2]], 0.035, DARK);
+    cable(b, [[0.14, 0.12, -0.6], [0.36, 0.15, -0.55], [0.56, 0.5, -0.3]], 0.03, AMBER);
+    // Layered chest: an inner plate with a lit vent below the glacis, rivets along its edge.
+    b.bevelBox(0.62, 0.24, 0.1, 0.04, STEEL, { p: [0, -0.02, 0.36] });
+    vent(b, [0, -0.02, 0.42], 0.36, 0.14, 3, DARK, GLOW);
+    bolts(b, [-0.36, 0.48, 0.34], [0.36, 0.48, 0.34], 5, 0.02, DARK, 'z');
+    // Left pauldron with hazard trim, and a forearm piston.
+    b.bevelBox(0.46, 0.2, 0.58, 0.08, PLATE, { p: [-0.64, 0.66, 0], r: [0, 0, 0.32] });
+    b.box(0.04, 0.05, 0.5, AMBER, { p: [-0.86, 0.6, 0], r: [0, 0, 0.32] });
+    piston(b, [-0.76, -0.02, 0.08], [-0.73, -0.36, 0.3], 0.035, DARK, STEEL);
+    // Lance: energy cells along the housing, a scope and a polished bore.
+    for (const z of [-0.15, 0.25]) {
+      b.cyl(0.09, 0.09, 0.32, 8, DARK, { p: [0.66, 0.84, z], r: [Math.PI / 2, 0, 0] });
+      b.cyl(0.095, 0.095, 0.05, 8, GLOW, { p: [0.66, 0.84, z + 0.08], r: [Math.PI / 2, 0, 0], glow: true });
+    }
+    b.bevelBox(0.1, 0.12, 0.34, 0.03, DARK, { p: [0.28, 1.12, 0.35] });
+    b.cyl(0.045, 0.045, 0.03, 6, GLOW, { p: [0.28, 1.12, 0.53], r: [Math.PI / 2, 0, 0], glow: true });
+    b.strut([0.42, 0.78, 2.3], [0.42, 0.78, 2.36], 0.09, 0.09, 8, STEEL, false, Finish.Metal);
     // Left arm.
     b.wedge(0.36, 0.22, 0.42, 0.3, STEEL, { p: [-0.6, 0.45, 0] }, 0.7);
     b.strut([-0.62, 0.42, 0], [-0.66, -0.05, 0.12], 0.09, 0.08, 6, DARK);
@@ -134,8 +177,12 @@ const lancer: RigFactory = (m) => {
     hip.position.set(side * 0.3, 1.72, 0);
     hip.add(buildPart('lancer-thigh', (b) => {
       b.ico(0.13, DARK, {});
-      b.strut([0, 0, 0], [0, -0.82, 0.12], 0.12, 0.1, 6, DARK);
+      // Hip actuator drum.
+      b.cyl(0.15, 0.15, 0.2, 8, STEEL, { r: [0, 0, Math.PI / 2], finish: Finish.Metal });
+      b.strut([0, 0, 0], [0, -0.82, 0.12], 0.12, 0.1, 6, DARK, false, Finish.Metal);
       b.bevelBox(0.26, 0.55, 0.3, 0.07, PLATE, { p: [0, -0.38, 0.1], r: [0.12, 0, 0] });
+      piston(b, [0.15, -0.12, -0.05], [0.12, -0.72, 0.02], 0.035, DARK, STEEL);
+      bolts(b, [-0.135, -0.2, 0.1], [-0.135, -0.55, 0.14], 3, 0.02, DARK, 'x');
     }, m));
     const knee = new THREE.Group();
     knee.position.set(0, -0.82, 0.12);
@@ -143,9 +190,13 @@ const lancer: RigFactory = (m) => {
       b.bevelBox(0.24, 0.2, 0.22, 0.06, AMBER, { p: [0, 0, 0.08] });
       b.strut([0, 0, 0], [0, -0.82, -0.12], 0.1, 0.08, 6, DARK);
       b.bevelBox(0.22, 0.45, 0.24, 0.06, PLATE, { p: [0, -0.35, 0.02], r: [-0.1, 0, 0] });
-      // Foot: plate with a toe and heel.
-      b.bevelBox(0.3, 0.12, 0.6, 0.05, DARK, { p: [0, -0.84, 0.0] });
-      b.wedge(0.3, 0.1, 0.22, 0.6, AMBER, { p: [0, -0.84, 0.3] });
+      // Calf piston and ankle joint.
+      piston(b, [0, -0.08, -0.16], [0, -0.66, -0.26], 0.035, DARK, STEEL);
+      b.cyl(0.08, 0.08, 0.26, 8, STEEL, { p: [0, -0.8, -0.1], r: [0, 0, Math.PI / 2], finish: Finish.Metal });
+      // Foot: split toes and a heel spur.
+      b.bevelBox(0.3, 0.12, 0.42, 0.05, DARK, { p: [0, -0.84, -0.05] });
+      for (const x of [-0.08, 0.08]) b.wedge(0.13, 0.1, 0.26, 0.6, AMBER, { p: [x, -0.86, 0.26] });
+      b.wedge(0.14, 0.08, 0.16, 0.6, DARK, { p: [0, -0.86, -0.32], r: [0, Math.PI, 0] });
     }, m));
     hip.add(knee);
     root.add(hip);
@@ -176,7 +227,21 @@ const rampart: RigFactory = (m) => {
     for (const s of [-1, 1]) {
       b.bevelBox(0.22, 0.5, 2.4, 0.06, DARK, { p: [s * 1.22, 0.35, 0] });
       b.box(0.04, 0.06, 1.4, AMBER, { p: [s * 1.34, 0.52, 0] });
+      // Bolted add-on armour blocks along the flanks.
+      for (const z of [-0.55, 0, 0.55]) b.bevelBox(0.1, 0.32, 0.46, 0.03, STEEL, { p: [s * 1.36, 0.32, z] });
+      bolts(b, [s * 1.42, 0.42, -0.75], [s * 1.42, 0.42, 0.75], 7, 0.025, DARK, 'x');
+      // Stowage boxes and a jerrycan on the rear deck.
+      b.bevelBox(0.5, 0.26, 0.42, 0.04, STEEL, { p: [s * 0.7, 1.05, -1.25] });
+      b.box(0.52, 0.03, 0.08, AMBER, { p: [s * 0.7, 1.12, -1.25] });
+      // Tow hooks and caged headlights.
+      b.torus(0.08, 0.025, STEEL, { p: [s * 0.45, 0.2, 1.72], r: [0, Math.PI / 2, 0], finish: Finish.Metal }, 8);
+      lamp(b, [s * 0.85, 0.66, 1.42], 0.06, DARK, GLOW);
     }
+    // Engine deck: glowing exhaust grilles at the rear and a grated intake.
+    for (const s of [-1, 1]) vent(b, [s * 0.5, 0.5, -1.57], 0.7, 0.3, 4, DARK, GLOW, Math.PI);
+    for (const z of [-0.4, -0.25, -0.1]) b.box(0.9, 0.03, 0.05, DARK, { p: [0.15, 1.09, z], finish: Finish.Metal });
+    b.box(0.08, 0.05, 0.05, 0xff3a2a, { p: [-1.05, 0.62, -1.58], glow: true });
+    b.box(0.08, 0.05, 0.05, 0xff3a2a, { p: [1.05, 0.62, -1.58], glow: true });
     // Four thruster pods: gunmetal drums with an amber band and cyan glow underneath.
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
@@ -203,15 +268,26 @@ const rampart: RigFactory = (m) => {
     b.cyl(0.18, 0.22, 0.14, 8, DARK, { p: [-0.32, 0.78, -0.45] });
     antenna(b, [0.45, 0.7, -0.65], 0.6);
     for (const s of [-1, 1]) for (const z of [-0.35, -0.5, -0.65]) b.box(0.03, 0.18, 0.08, DARK, { p: [s * 0.66, 0.45, z] });
-    // Twin barrels with amber bands, cyan strips and muzzle brakes.
+    // Twin barrels: mantlet, polished tubes with fume extractors, amber bands and muzzle brakes.
     for (const s of [-1, 1]) {
       b.bevelBox(0.3, 0.3, 0.4, 0.06, DARK, { p: [s * 0.28, 0.35, 0.55] });
-      b.strut([s * 0.28, 0.35, 0.7], [s * 0.28, 0.35, 2.1], 0.11, 0.1, 8, DARK);
-      b.cyl(0.13, 0.13, 0.12, 8, AMBER, { p: [s * 0.28, 0.35, 1.25], r: [Math.PI / 2, 0, 0] });
-      b.box(0.04, 0.05, 0.6, GLOW, { p: [s * 0.28, 0.47, 1.6], glow: true });
-      b.bevelBox(0.24, 0.24, 0.3, 0.05, STEEL, { p: [s * 0.28, 0.35, 2.15] });
-      b.cyl(0.08, 0.08, 0.03, 8, GLOW, { p: [s * 0.28, 0.35, 2.31], r: [Math.PI / 2, 0, 0], glow: true });
+      barrel(b, [s * 0.28, 0.35, 0.7], 1.5, 0.1, DARK, 2);
+      b.cyl(0.13, 0.13, 0.12, 8, AMBER, { p: [s * 0.28, 0.35, 1.4], r: [Math.PI / 2, 0, 0] });
+      b.box(0.04, 0.05, 0.5, GLOW, { p: [s * 0.28, 0.47, 1.75], glow: true });
+      b.cyl(0.07, 0.07, 0.03, 8, GLOW, { p: [s * 0.28, 0.35, 2.21], r: [Math.PI / 2, 0, 0], glow: true });
+      // Smoke-grenade launchers on the turret cheeks.
+      for (let i = 0; i < 3; i++) {
+        b.cyl(0.055, 0.055, 0.22, 6, DARK, { p: [s * 0.7, 0.62 + i * 0.03, 0.2 - i * 0.14], r: [-0.6, 0, s * -0.5], finish: Finish.Metal });
+      }
     }
+    // Commander cupola with periscopes, and a rivet line round the turret roof.
+    b.cyl(0.24, 0.27, 0.16, 8, STEEL, { p: [0.15, 0.78, -0.3] });
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      b.box(0.07, 0.06, 0.04, GLOW, { p: [0.15 + Math.sin(a) * 0.25, 0.8, -0.3 + Math.cos(a) * 0.25], r: [0, a, 0], glow: true });
+    }
+    b.bevelBox(0.3, 0.05, 0.3, 0.02, DARK, { p: [0.15, 0.88, -0.3] });
+    bolts(b, [-0.6, 0.72, 0.4], [0.6, 0.72, 0.4], 6, 0.025, DARK);
   }, m));
   body.add(head);
   return {
@@ -247,9 +323,23 @@ const kestrel: RigFactory = (m) => {
       b.strut([s * 0.75, -0.18, 0.5], [s * 0.75, -0.18, -0.4], 0.07, 0.07, 6, PLATE);
       b.cone(0.07, 0.2, 6, AMBER, { p: [s * 0.75, -0.18, 0.6], r: [Math.PI / 2, 0, 0] });
     }
-    // Engine nacelle and exhaust glow.
+    // Engine nacelle: a ringed metal nozzle around the exhaust glow.
     b.strut([0, 0.02, -1.0], [0, 0.02, -1.55], 0.28, 0.24, 8, DARK);
+    b.strut([0, 0.02, -1.5], [0, 0.02, -1.68], 0.24, 0.27, 10, STEEL, false, Finish.Metal);
+    for (const z of [-1.2, -1.38]) b.cyl(0.3, 0.3, 0.04, 8, STEEL, { p: [0, 0.02, z], r: [Math.PI / 2, 0, 0], finish: Finish.Metal });
     b.cone(0.2, 0.55, 8, GLOW, { p: [0, 0.02, -1.82], r: [-Math.PI / 2, 0, 0], glow: true });
+    // Air intakes, canopy frame, ventral fin and nav lights.
+    for (const s of [-1, 1]) {
+      b.wedge(0.16, 0.16, 0.5, 0.3, STEEL, { p: [s * 0.37, -0.06, 0.45], r: [0, Math.PI, 0] });
+      b.box(0.11, 0.1, 0.03, 0x0b0e12, { p: [s * 0.37, 0.02, 0.7] });
+      lamp(b, [s * 1.7, 0.03, -0.92], 0.035, DARK, s > 0 ? 0x4dff8a : 0xff4040, 'x');
+      // Second missile on an outer pylon.
+      b.strut([s * 1.15, -0.06, -0.1], [s * 1.15, -0.06, -0.75], 0.035, 0.035, 4, DARK);
+      b.strut([s * 1.15, -0.15, 0.0], [s * 1.15, -0.15, -0.8], 0.055, 0.055, 6, PLATE);
+      b.cone(0.055, 0.16, 6, AMBER, { p: [s * 1.15, -0.15, 0.08], r: [Math.PI / 2, 0, 0] });
+    }
+    b.strut([0, 0.24, 1.18], [0, 0.32, 0.72], 0.02, 0.02, 4, DARK);
+    b.hull([[0, -0.15, -0.6], [0, -0.15, -1.2], [0, -0.45, -1.15], [0.03, -0.15, -0.9], [-0.03, -0.15, -0.9]], STEEL);
   }, m));
   root.add(body);
   return {

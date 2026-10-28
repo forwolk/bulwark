@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { Materials } from './Materials';
+import { Finish, Materials } from './Materials';
 
 type Vec3Tuple = [number, number, number];
 
@@ -14,6 +14,8 @@ export interface PartOptions {
   s?: Vec3Tuple;
   /** Renders with the unlit, bloom-driving glow material. */
   glow?: boolean;
+  /** Surface finish for the body material (painted plate by default). */
+  finish?: Finish;
 }
 
 export interface BuiltGeometry {
@@ -41,6 +43,9 @@ export class ModelBuilder {
   private readonly bodyParts: THREE.BufferGeometry[] = [];
   private readonly glowParts: THREE.BufferGeometry[] = [];
 
+  /** `defaultFinish` applies to every part that doesn't name its own. */
+  constructor(private readonly defaultFinish: Finish = Finish.Paint) {}
+
   add(source: THREE.BufferGeometry, color: THREE.ColorRepresentation, o: PartOptions = {}): this {
     const geo = source.index ? source.toNonIndexed() : source;
     if (geo !== source) source.dispose();
@@ -63,6 +68,7 @@ export class ModelBuilder {
       colors[i * 3 + 2] = tmpColor.b;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.setAttribute('finish', new THREE.BufferAttribute(new Float32Array(count).fill(o.finish ?? this.defaultFinish), 1));
 
     (o.glow ? this.glowParts : this.bodyParts).push(geo);
     return this;
@@ -101,7 +107,7 @@ export class ModelBuilder {
   }
 
   /** Tapered cylinder from point `a` to point `b`: limb segments, spars, barrels. */
-  strut(a: Vec3Tuple, b: Vec3Tuple, rA: number, rB: number, segments: number, color: THREE.ColorRepresentation, glow = false): this {
+  strut(a: Vec3Tuple, b: Vec3Tuple, rA: number, rB: number, segments: number, color: THREE.ColorRepresentation, glow = false, finish?: Finish): this {
     tmpA.set(...a);
     tmpB.set(...b);
     const dir = tmpB.clone().sub(tmpA);
@@ -111,7 +117,7 @@ export class ModelBuilder {
     const mid = tmpA.add(tmpB).multiplyScalar(0.5);
     // CylinderGeometry's first radius is the +Y end, which points at `b`.
     return this.add(new THREE.CylinderGeometry(rB, rA, len, segments), color, {
-      p: [mid.x, mid.y, mid.z], r: [tmpE.x, tmpE.y, tmpE.z], glow,
+      p: [mid.x, mid.y, mid.z], r: [tmpE.x, tmpE.y, tmpE.z], glow, finish,
     });
   }
 
@@ -174,10 +180,10 @@ const partCache = new Map<string, BuiltGeometry>();
  * Returns a Group for a named part, building and caching its geometry on first use.
  * Instances share geometry; materials can be overridden (per-unit hit flash, build ghosts).
  */
-export function buildPart(key: string, build: (b: ModelBuilder) => void, materials: PartMaterials = {}): THREE.Group {
+export function buildPart(key: string, build: (b: ModelBuilder) => void, materials: PartMaterials = {}, finish: Finish = Finish.Paint): THREE.Group {
   let built = partCache.get(key);
   if (!built) {
-    const builder = new ModelBuilder();
+    const builder = new ModelBuilder(finish);
     build(builder);
     built = builder.build();
     partCache.set(key, built);

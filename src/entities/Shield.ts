@@ -19,7 +19,7 @@ export class Shield {
   private rebootTimer = 0;
 
   constructor() {
-    this.dome = new ShieldDome(this.radius, 0x1d6fe0, 0x8fe8ff, C.playerAccent);
+    this.dome = new ShieldDome(this.radius, 0x1258e8, 0x4cd2ff, C.playerAccent);
     this.dome.group.position.copy(this.center);
   }
 

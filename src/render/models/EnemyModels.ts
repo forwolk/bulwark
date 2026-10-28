@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import type { EnemyKind } from '../../config/enemies';
 import { PALETTE as C } from '../../config/palette';
+import { Finish } from '../Materials';
 import { buildPart, type ModelBuilder, type PartMaterials } from '../ModelBuilder';
+import { cable, pustules, spines } from './greebles';
 
 export interface EnemyRig {
   root: THREE.Group;
@@ -28,6 +30,8 @@ const PLATE_L = C.enemyPlateLight;
 const BONE = C.enemyBone;
 const GLOW = C.enemyGlow;
 const HOT = C.enemyGlowHot;
+/** Exposed sinew between armour plates. */
+const FLESH = 0x8e2c3e;
 
 function attachMuzzle(parent: THREE.Object3D, x: number, y: number, z: number): THREE.Object3D {
   const muzzle = new THREE.Object3D();
@@ -46,6 +50,9 @@ function claw(b: ModelBuilder, at: V3, dir: V3, length: number, width: number, c
 function crawlerLeg(b: ModelBuilder, hip: V3, knee: V3, foot: V3, r: number, upper: number, lower: number): void {
   b.strut(hip, knee, r, r * 0.8, 5, upper);
   b.ico(r * 1.15, SHELL, { p: knee });
+  // A spur on the knuckle and a sinew band on the upper segment.
+  claw(b, knee, [knee[0] - hip[0], 1.2, knee[2] - hip[2]], r * 2.2, r * 0.45);
+  b.ico(r * 0.9, FLESH, { p: [hip[0] + (knee[0] - hip[0]) * 0.35, hip[1] + (knee[1] - hip[1]) * 0.35 - r * 0.3, hip[2] + (knee[2] - hip[2]) * 0.35], s: [1.2, 0.7, 1.2] });
   b.strut(knee, foot, r * 0.75, r * 0.45, 5, lower);
   claw(b, foot, [foot[0] - knee[0], foot[1] - knee[1] - 0.6, foot[2] - knee[2]], r * 3, r * 0.5);
 }
@@ -78,7 +85,15 @@ const skitter: RigFactory = (m) => {
     // Abdomen with a glowing underside sac.
     b.bevelBox(0.72, 0.4, 0.6, 0.14, SHELL, { p: [0, 0.6, -0.72], r: [0.2, 0, 0] });
     b.ico(0.2, GLOW, { p: [0, 0.48, -0.85], s: [1.3, 0.8, 1.2], glow: true });
-  }, m);
+    // Ribbed abdomen, glowing blisters, feelers and serrated inner mandibles.
+    for (let i = 0; i < 3; i++) b.torus(0.3 - i * 0.03, 0.035, SHELL_L, { p: [0, 0.62 - i * 0.04, -0.55 - i * 0.16], r: [0.2, 0, 0] }, 8);
+    pustules(b, [0, 0.72, -0.78], [0.6, 0.15, 0.4], 5, 0.06, HOT, 3);
+    for (const s of [-1, 1]) {
+      b.strut([s * 0.12, 0.75, 0.9], [s * 0.35, 1.15, 1.35], 0.025, 0.012, 3, SHELL_L);
+      claw(b, [s * 0.12, 0.52, 1.0], [s * -0.4, -0.1, 1], 0.22, 0.04);
+      b.ico(0.09, FLESH, { p: [s * 0.32, 0.55, 0.62], s: [1, 0.8, 1.4] });
+    }
+  }, m, Finish.Gloss);
   root.add(body);
 
   const limbs: THREE.Group[] = [];
@@ -97,7 +112,7 @@ const skitter: RigFactory = (m) => {
             0.07, PLATE, SHELL);
         }
       }
-    }, m);
+    }, m, Finish.Gloss);
     root.add(legs);
     limbs.push(legs);
   }
@@ -132,7 +147,17 @@ const strider: RigFactory = (m) => {
     // Left arm: bone blade.
     b.strut([-0.75, 0.05, 0.1], [-0.95, -0.55, 0.45], 0.13, 0.1, 5, SHELL_L);
     claw(b, [-0.95, -0.55, 0.45], [0.05, -0.3, 1], 0.9, 0.12);
-  }, m));
+    // Shoulder spines, ribs along the flanks, sinew to the arms and veins feeding the cannon.
+    spines(b, [0.6, 0.45, 0.45], [0.75, 0.3, -0.35], 3, 0.5, 0.08, BONE, [0.6, 1, -0.4]);
+    spines(b, [-0.6, 0.45, 0.45], [-0.75, 0.3, -0.35], 3, 0.5, 0.08, BONE, [-0.6, 1, -0.4]);
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 3; i++) b.strut([s * 0.68, 0.25 - i * 0.18, 0.4], [s * 0.7, 0.18 - i * 0.18, -0.45], 0.04, 0.04, 4, BONE);
+    }
+    b.strut([0.55, 0.05, 0.3], [0.85, -0.05, 0.55], 0.1, 0.08, 5, FLESH);
+    b.strut([-0.55, 0.0, 0.3], [-0.75, 0.05, 0.12], 0.1, 0.08, 5, FLESH);
+    cable(b, [[0.62, 0.22, 0.1], [0.98, 0.0, 0.5], [1.03, -0.12, 1.0], [0.98, -0.18, 1.5]], 0.035, GLOW);
+    pustules(b, [0, 0.55, -0.35], [0.9, 0.2, 0.6], 6, 0.07, HOT, 7);
+  }, m, Finish.Gloss));
   root.add(body);
 
   const limbs: THREE.Group[] = [];
@@ -144,7 +169,9 @@ const strider: RigFactory = (m) => {
       b.ico(0.2, SHELL, {});
       b.strut([0, 0, 0], [0, -0.95, 0.35], 0.18, 0.15, 6, PLATE);
       b.wedge(0.3, 0.12, 0.55, 0.4, PLATE_L, { p: [0, -0.45, 0.2], r: [0.35, 0, 0] });
-    }, m));
+      b.strut([0, -0.1, -0.12], [0, -0.85, 0.2], 0.09, 0.07, 5, FLESH);
+      claw(b, [0, -0.95, 0.42], [0, 0.4, 1], 0.35, 0.08);
+    }, m, Finish.Gloss));
     const knee = new THREE.Group();
     knee.position.set(0, -0.95, 0.35);
     knee.add(buildPart('strider-shin', (b) => {
@@ -153,7 +180,9 @@ const strider: RigFactory = (m) => {
       // Three-toed clawed foot with a heel spur.
       for (const t of [-0.25, 0, 0.25]) claw(b, [0, -1.0, -0.35], [t, -0.25, 1], 0.5, 0.08);
       claw(b, [0, -1.0, -0.35], [0, -0.3, -1], 0.3, 0.07);
-    }, m));
+      b.wedge(0.22, 0.1, 0.6, 0.3, PLATE, { p: [0, -0.45, 0.0], r: [-0.35, 0, 0] }, 0.7);
+      spines(b, [0, -0.3, -0.15], [0, -0.7, -0.3], 2, 0.25, 0.05, BONE, [0, 0.3, -1]);
+    }, m, Finish.Gloss));
     hip.add(knee);
     root.add(hip);
     limbs.push(hip);
@@ -186,7 +215,14 @@ const juggernaut: RigFactory = (m) => {
     // Glowing back vents and a hot core at the rear.
     for (const x of [-0.6, 0, 0.6]) b.box(0.18, 0.1, 1.1, GLOW, { p: [x, 2.5, -0.9], glow: true });
     b.ico(0.4, HOT, { p: [0, 1.6, -1.85], glow: true });
-  }, m);
+    // Blisters down the flanks, bone ridges on the ram and sinew under the shoulder plates.
+    for (const s of [-1, 1]) {
+      pustules(b, [s * 1.25, 1.75, -0.6], [0.1, 0.5, 1.6], 6, 0.11, HOT, s > 0 ? 11 : 13);
+      b.strut([s * 1.0, 0.9, 1.3], [s * 1.25, 1.1, 0.0], 0.22, 0.18, 6, FLESH);
+    }
+    for (const x of [-0.7, 0, 0.7]) b.strut([x, 0.8, 2.2], [x, 2.1, 1.85], 0.07, 0.07, 4, SHELL_L);
+    for (const x of [-0.35, 0.35]) claw(b, [x, 2.15, 1.6], [x * 0.5, 1, 0.4], 0.7, 0.14);
+  }, m, Finish.Gloss);
   root.add(body);
 
   const limbs: THREE.Group[] = [];
@@ -200,8 +236,12 @@ const juggernaut: RigFactory = (m) => {
         b.ico(0.42, SHELL, { p: knee });
         b.strut(knee, foot, 0.36, 0.3, 6, SHELL_L);
         for (const t of [-0.5, 0, 0.5]) claw(b, [foot[0], 0.15, foot[2]], [sx * 0.3 + t * 0.4, -0.2, sz * 0.8 + t], 0.55, 0.13);
+        // Armour plate over the upper leg, a knee horn and sinew behind the shin.
+        b.wedge(0.6, 0.18, 0.9, 0.3, PLATE_L, { p: [(hip[0] + knee[0]) / 2, 1.55, (hip[2] + knee[2]) / 2], r: [0, Math.atan2(sx, sz), 0] }, 0.7);
+        claw(b, knee, [sx * 0.5, 1, sz * 0.3], 0.6, 0.15);
+        b.strut([knee[0] - sx * 0.2, 1.0, knee[2] - sz * 0.25], [foot[0] - sx * 0.15, 0.4, foot[2] - sz * 0.2], 0.12, 0.09, 5, FLESH);
       }
-    }, m);
+    }, m, Finish.Gloss);
     root.add(legs);
     limbs.push(legs);
   }
@@ -229,11 +269,15 @@ const wasp: RigFactory = (m) => {
       if (i < 3) b.box(s * 0.8, 0.04, 0.04, GLOW, { p: [0, -0.05 - i * 0.05 + s * 0.46, z - 0.19], glow: true });
     }
     claw(b, [0, -0.25, -2.0], [0, -0.3, -1], 0.4, 0.06);
+    // Feelers, a glowing venom sac under the stinger and ridges between the abdomen plates.
+    for (const s of [-1, 1]) b.strut([s * 0.1, 0.2, 0.75], [s * 0.4, 0.55, 1.25], 0.02, 0.01, 3, SHELL_L);
+    b.ico(0.12, HOT, { p: [0, -0.33, -1.75], s: [1, 0.8, 1.3], glow: true });
+    pustules(b, [0, 0.25, -0.2], [0.35, 0.05, 0.5], 3, 0.05, HOT, 5);
     // Dangling legs.
     for (const s of [-1, 1]) {
       for (const z of [-0.2, 0.1, 0.35]) b.strut([s * 0.22, -0.2, z], [s * 0.45, -0.75, z + 0.1], 0.035, 0.02, 4, SHELL_L);
     }
-  }, m);
+  }, m, Finish.Gloss);
   root.add(body);
 
   const limbs: THREE.Group[] = [];
@@ -249,7 +293,7 @@ const wasp: RigFactory = (m) => {
         ], 0xd6b9a8);
         b.strut([0, 0.04, z], [side * len * 0.95, 0.04, z + sweep], 0.025, 0.015, 3, GLOW, true);
       }
-    }, m));
+    }, m, Finish.Gloss));
     root.add(wing);
     limbs.push(wing);
   }
@@ -285,14 +329,19 @@ const howler: RigFactory = (m) => {
       const front: V3 = [c[0], c[1] + fwd[1] * 0.72, c[2] + fwd[2] * 0.72];
       const back: V3 = [c[0], c[1] - fwd[1] * 0.6, c[2] - fwd[2] * 0.6];
       b.strut(back, front, 0.17, 0.17, 8, SHELL);
+      b.strut([back[0], back[1] + fwd[1] * 0.35, back[2] + fwd[2] * 0.35], [back[0], back[1] + fwd[1] * 0.45, back[2] + fwd[2] * 0.45], 0.2, 0.2, 8, BONE);
       b.strut(front, [front[0], front[1] + fwd[1] * 0.04, front[2] + fwd[2] * 0.04], 0.13, 0.13, 8, HOT, true);
     }
+    // Bone bands round the tubes, sinew bracing the rack and blisters along the back.
+    for (const s of [-1, 1]) b.strut([s * 0.45, 1.05, 0.5], [s * 0.6, 1.5, 0.05], 0.09, 0.07, 5, FLESH);
+    pustules(b, [0, 1.1, -0.75], [1.1, 0.15, 0.5], 6, 0.08, HOT, 17);
+    spines(b, [0, 1.15, 0.6], [0, 1.1, 0.25], 2, 0.35, 0.07, BONE);
     // Mounting struts and spines.
     for (const s of [-1, 1]) {
       b.strut([s * 0.55, 1.05, 0.2], [s * 0.6, 1.4, 0.2], 0.08, 0.08, 5, SHELL_L);
       claw(b, [s * 0.7, 1.15, -0.9], [s * 0.4, 0.6, -1], 0.5, 0.08);
     }
-  }, m));
+  }, m, Finish.Gloss));
   root.add(body);
 
   const limbs: THREE.Group[] = [];
@@ -306,7 +355,7 @@ const howler: RigFactory = (m) => {
           crawlerLeg(b, [side * 0.75, 0.8, z], [side * 1.35, 1.15, z + fan * 0.5], [side * 1.75, 0.02, z + fan], 0.1, PLATE, SHELL);
         }
       }
-    }, m);
+    }, m, Finish.Gloss);
     root.add(legs);
     limbs.push(legs);
   }
@@ -332,9 +381,12 @@ const vulture: RigFactory = (m) => {
     // Bomb bay: a glowing sac under the belly, ringed in bone.
     b.ico(0.42, HOT, { p: [0, -0.5, 0.1], s: [1, 0.7, 1.2], glow: true });
     b.torus(0.48, 0.07, BONE, { p: [0, -0.42, 0.1], r: [Math.PI / 2, 0, 0] }, 10);
+    // Dorsal spines and blisters flanking the bomb bay.
+    spines(b, [0, 0.55, 1.2], [0, 0.4, -1.2], 5, 0.55, 0.08, BONE);
+    pustules(b, [0, -0.3, 0.1], [1.0, 0.15, 1.2], 6, 0.08, HOT, 19);
     // Tail spikes.
     for (const s of [-1, 0, 1]) claw(b, [s * 0.2, 0.1, -1.9], [s * 0.4, 0.1, -1], 0.7, 0.09);
-  }, m);
+  }, m, Finish.Gloss);
   root.add(body);
 
   const limbs: THREE.Group[] = [];
@@ -354,10 +406,14 @@ const vulture: RigFactory = (m) => {
       b.ico(0.13, BONE, { p: elbow });
       claw(b, elbow, [side * 0.2, 0.3, 1], 0.5, 0.08);
       for (const [x, z] of [[1.3, -1.4], [2.8, -1.35]]) b.strut(elbow, [side * x, 0.03, z], 0.05, 0.03, 4, BONE);
+      // Hooked claw at the wrist and a vein web across the inner membrane.
+      claw(b, tip, [side * 0.5, -0.2, 0.6], 0.5, 0.06);
+      b.strut([side * 0.3, 0.05, -0.4], [side * 1.4, 0.2, 0.2], 0.03, 0.02, 3, FLESH);
+      b.strut([side * 1.9, 0.18, 0.1], [side * 2.4, 0.06, -0.9], 0.03, 0.02, 3, FLESH);
       // Glowing veins along the membrane edge.
       b.strut([side * 1.35, 0.06, -1.35], [side * 2.75, 0.06, -1.3], 0.035, 0.035, 3, GLOW, true);
       b.strut([side * 2.85, 0.06, -1.3], [side * 3.7, 0.1, -0.25], 0.035, 0.02, 3, GLOW, true);
-    }, m));
+    }, m, Finish.Gloss));
     root.add(wing);
     limbs.push(wing);
   }
@@ -395,11 +451,17 @@ const leviathan: RigFactory = (m) => {
       claw(b, [s * 1.2, -0.5, 4.2], [s * 0.4, -0.2, 1], 1.8, 0.35);
       b.ico(0.18, HOT, { p: [s * 0.7, 0.45, 4.35], glow: true });
     }
+    // Blisters on the flanks, ribs under the armour and a fringe of sinew round the head.
+    for (const s of [-1, 1]) {
+      pustules(b, [s * 2.3, 0.6, -0.8], [0.3, 0.8, 3.6], 9, 0.2, HOT, s > 0 ? 23 : 29);
+      for (let i = 0; i < 4; i++) b.strut([s * 1.9, -0.6, 1.4 - i * 1.0], [s * 2.6, -1.4, 1.2 - i * 1.0], 0.13, 0.1, 5, BONE);
+      b.strut([s * 1.3, -0.6, 2.6], [s * 1.5, 0.5, 2.4], 0.3, 0.25, 6, FLESH);
+    }
     // Artillery tube rising from the back.
     b.strut([0, 1.2, 0.3], [0, 2.5, 1.85], 0.55, 0.45, 8, SHELL);
     b.torus(0.5, 0.1, GLOW, { p: [0, 1.85, 1.1], r: [0.9, 0, 0], glow: true }, 10);
     b.cyl(0.36, 0.36, 0.1, 8, C.enemyPlasma, { p: [0, 2.5, 1.9], r: [0.9, 0, 0], glow: true });
-  }, m));
+  }, m, Finish.Gloss));
   root.add(body);
 
   const limbs: THREE.Group[] = [];
@@ -414,14 +476,17 @@ const leviathan: RigFactory = (m) => {
       b.strut([0, 0, 0], [side * 2.1, 1.0, 0], 0.55, 0.45, 6, PLATE);
       b.wedge(0.8, 0.4, 1.2, 0.3, PLATE_L, { p: [side * 1.1, 0.7, 0], r: [0, 0, side * -0.45] });
       claw(b, [side * 1.4, 0.95, 0], [side * 0.2, 1, 0], 0.7, 0.18);
-    }, m));
+      b.strut([side * 0.3, -0.35, 0], [side * 1.9, 0.55, 0], 0.25, 0.2, 6, FLESH);
+    }, m, Finish.Gloss));
     const knee = new THREE.Group();
     knee.position.set(side * 2.1, 1.0, 0);
     knee.add(buildPart(`leviathan-shin-${side}`, (b) => {
       b.ico(0.45, SHELL_L, {});
       b.strut([0, 0, 0], [side * 0.6, -3.9, 0], 0.4, 0.25, 6, SHELL);
       claw(b, [side * 0.6, -3.7, 0], [side * 0.1, -1, 0.3], 0.6, 0.25);
-    }, m));
+      b.wedge(0.7, 0.3, 1.6, 0.3, PLATE_L, { p: [side * 0.25, -1.4, 0], r: [0, 0, side * 0.1] }, 0.6);
+      spines(b, [side * 0.15, -0.8, 0], [side * 0.35, -2.4, 0], 3, 0.6, 0.14, BONE, [side * 1, 0.4, 0]);
+    }, m, Finish.Gloss));
     hip.add(knee);
     root.add(hip);
     limbs.push(hip);
