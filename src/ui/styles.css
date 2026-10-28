@@ -89,6 +89,8 @@ html, body {
 .ability-key { position: relative; font-family: var(--display); font-size: 13px; color: var(--cyan); }
 .ability-name { position: relative; font-size: 14px; font-weight: 600; }
 .ability.ready { border-color: var(--cyan); box-shadow: 0 0 14px rgba(63, 216, 255, 0.35) inset; }
+.ability-auto { display: none; position: absolute; top: 5px; right: 7px; font-family: var(--display); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cyan); }
+.ability.auto .ability-auto { display: block; }
 
 /* ---------- Build bar ---------- */
 .buildbar { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }

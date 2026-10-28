@@ -89,7 +89,7 @@ export class CoreGun {
     this.autoTarget = null;
     savePref('autoFire', on);
     this.world.sfx.click();
-    this.world.events.emit('message', { text: on ? 'Auto-fire on' : 'Auto-fire off', tone: 'info' });
+    this.world.events.emit('message', { text: on ? 'Auto-fire on: gun and missiles' : 'Auto-fire off', tone: 'info' });
   }
 
   cycle(): void {

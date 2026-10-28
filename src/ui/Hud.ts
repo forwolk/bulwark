@@ -58,6 +58,7 @@ export class Hud {
 
     const abilities = el('div', 'abilities', this.root);
     this.missileTile = this.abilityTile(abilities, 'RMB', 'Swarm Missiles');
+    el('div', 'ability-auto', this.missileTile, 'Auto');
     this.novaTile = this.abilityTile(abilities, 'SPACE', 'Nova Pulse');
 
     this.launch = el('button', 'launch', this.root);
@@ -136,6 +137,7 @@ export class Hud {
     setText(this.scrapValue, `${Math.round(this.displayedScrap)}`);
 
     this.updateAbility(this.missileTile, weapons.missileReady);
+    this.missileTile.classList.toggle('auto', weapons.gun.autoFire);
     this.updateAbility(this.novaTile, weapons.novaReady);
 
     // Build phase: launch. Combat: call the next wave early for a bonus.

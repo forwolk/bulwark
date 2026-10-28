@@ -11,7 +11,7 @@ There are three battlefields, picked on the title screen. Each has its own look 
 | **Mossgate Hollow**: grassy stone terraces with standing stones | 4 dirt ramps down from the rim | Ravines with a stream |
 
 ### Shields and the newer threats
-- **Core shield**: a single energy dome (radius 15) over the main gun. Enemy bolts, wasp lasers, artillery, rockets and bombs entering from outside are absorbed at its surface; fire that starts inside, and melee units, get through. It recharges after 3 s without hits. When drained it collapses into shards and reboots after 8 s at 30%, building back up from its base ring. Its strength shows under Core Integrity in the HUD. The logic lives in `systems/ShieldSystem.ts`, and the layered shader (flowing energy, filaments, hex lattice, ripples, rim, base ring) in `vfx/ShieldDome.ts`.
+- **Core shield**: a single energy dome (radius 15) over the main gun. Enemy bolts, wasp lasers, artillery, rockets and bombs entering from outside are absorbed at its surface; fire that starts inside, and melee units, get through. It recharges after 3 s without hits. When drained it collapses into shards and reboots after 8 s at 30%, building back up from its base ring. Its strength shows under Core Integrity in the HUD. The logic lives in `systems/ShieldSystem.ts`, and the layered shader in `vfx/ShieldDome.ts`. It has raised hex panels (mapped stereographically, so they stay even from crown to base), water-like caustics, filaments, a climbing scan line, panels that light up as an impact ripple passes, and panels that drop out with flickering edges as the shield weakens.
 - **Capacitor** (key 5): adds +450 dome strength and +12/s recharge while it stands, and streams energy motes into the dome. Capacitors outside the dome can be bombed.
 - **Howler** (from wave 3): rocket artillery that stops 30 units out and fires 4-rocket salvos. It outranges most turrets.
 - **Vulture** (from wave 5): a bomber cruising above the dome that flies passes over its target. It releases a stick of 3 bombs early enough to land on it, overshoots, loops back and repeats. Flak and Repeaters shoot it down.
@@ -30,7 +30,7 @@ The core's main gun has four modes. Switching takes 0.7 s while the barrels swap
 | Lance | Hold to channel a piercing beam that ramps up over 0.6 s; hits air too |
 | Siege | Lobs a heavy shell at the cursor (10–50 range, shown by a ring); big knockback, ground only |
 
-With **auto-fire** on, the gun picks targets itself: the enemy closest to the core that the current mode can hit. It leads moving targets and fires once lined up. Holding LMB still takes manual control. The setting is remembered per browser.
+With **auto-fire** on, the gun picks targets itself: the enemy closest to the core that the current mode can hit. It leads moving targets and fires once lined up. Holding LMB still takes manual control. Auto-fire also launches the swarm missiles as soon as they're off cooldown. Each salvo aims at the densest group within 40 units, weighted toward enemies near the core and toward flyers. The missile tile shows an AUTO badge, and RMB still fires them by hand. The setting is remembered per browser.
 
 ### Squads
 Squads are allied units you deploy from the core for scrap, using the left-hand panel or Q W E R. Each type has its own cooldown, and at most 6 squads can be in the field at once. Each squad takes a guard post on the emptiest entry lane and engages enemies within a leash of that post. Enemies attack squads too, and squads are repaired between waves with the structures.
@@ -62,8 +62,8 @@ Requires Node 16+. Vite is pinned to v4 for Node 16 compatibility. Once you're o
 | --- | --- |
 | Mouse / LMB hold | Aim and fire the core gun |
 | A S D F / Tab | Switch gun mode: Autocannon / Scatter / Lance / Siege (Tab cycles) |
-| T | Toggle auto-fire (also a switch in the Core gun panel) |
-| RMB | Swarm missiles at enemies near the cursor |
+| T | Toggle auto-fire for the gun and swarm missiles (also a switch in the Core gun panel) |
+| RMB | Swarm missiles at enemies near the cursor (automatic while auto-fire is on) |
 | Space | Nova pulse: damage plus knockback around the core |
 | 1–5 | Select Repeater / Flak / Mortar / Arc Coil / Capacitor |
 | Q W E R | Deploy a squad: Sentinels / Lancers / Rampart / Kestrels |
@@ -117,6 +117,13 @@ All units are built from primitives in `render/models/`. Beyond boxes and cylind
 - `wedge`: tapered plates.
 - `hull`: any convex shape, for claws, fuselages and membranes.
 - `strut`: a tapered segment between two points, for limbs, spars and barrels.
+
+`render/models/greebles.ts` adds small details: `piston`, `bolts`, `vent`, `cable`, `lamp`, `barrel`, and for the swarm, `pustules` and `spines`. Each part has a finish (`Finish` in `render/Materials.ts`) stored per vertex:
+- **Paint**: painted armour, which gets fine staggered panel seams.
+- **Metal**: polished bare metal that reflects a studio environment map.
+- **Gloss**: chitin and bone.
+
+Enemy parts default to `Gloss`. All units also get a cool rim light, which keeps them readable against busy ground.
 
 Walkers have hip and knee pivots, crawlers move in alternating tripods, and turrets track independently. The designs follow two Scenario concept sheets, one per faction. A generated 3D model was tested and rejected: it was 3.4 MB, a single mesh that couldn't animate, with texture detail invisible at game zoom.
 

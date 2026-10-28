@@ -7,8 +7,16 @@ import type { World } from '../core/World';
 import type { Enemy } from '../entities/Enemy';
 
 const pod = new THREE.Vector3();
+const focus = new THREE.Vector3();
+const candidates: Enemy[] = [];
+const neighbours: Enemy[] = [];
 
-/** The core's main gun (LMB, switchable modes), swarm missiles (RMB) and nova pulse (Space). */
+/** Auto-fire launches missiles at targets within this distance of the core. */
+const AUTO_MISSILE_RANGE = 40;
+/** Radius of the group a missile salvo is aimed into. */
+const CLUSTER_RADIUS = 6;
+
+/** The core's main gun (LMB, switchable modes), swarm missiles (RMB, or automatic with auto-fire) and nova pulse (Space). */
 export class PlayerWeapons {
   readonly gun: CoreGun;
   missileCooldown = 0;
@@ -35,25 +43,52 @@ export class PlayerWeapons {
 
     const building = build.selected !== null;
     this.gun.update(dt, input.isButtonDown(0) && !build.blocksFire);
-    if (input.wasButtonPressed(2) && !building) this.launchMissiles();
+    if (input.wasButtonPressed(2) && !building) this.launchMissiles(this.world.aimPoint, true);
+    else if (this.gun.autoFire && this.missileCooldown <= 0) this.autoLaunch();
     if (input.wasKeyPressed('Space')) this.novaPulse();
   }
 
-  private launchMissiles(): void {
-    const { enemies, effects, sfx, timers, upgrades, core, aimPoint, projectiles } = this.world;
+  /**
+   * Auto-fire: as soon as the salvo is ready, aim it into the densest group in range, favouring
+   * enemies close to the core and flyers (which most ground defences can't touch).
+   */
+  private autoLaunch(): void {
+    const { enemies } = this.world;
+    enemies.inRadius(0, 0, AUTO_MISSILE_RANGE, 'both', candidates);
+    if (candidates.length === 0) return;
+    let best: Enemy | null = null;
+    let bestScore = -Infinity;
+    for (const e of candidates) {
+      const crowd = enemies.inRadius(e.position.x, e.position.z, CLUSTER_RADIUS, 'both', neighbours).length;
+      const closeness = 1 - Math.hypot(e.position.x, e.position.z) / AUTO_MISSILE_RANGE;
+      const score = crowd + closeness * 3 + (e.flying ? 2 : 0);
+      if (score > bestScore) {
+        bestScore = score;
+        best = e;
+      }
+    }
+    if (best) this.launchMissiles(focus.copy(best.position), false);
+  }
+
+  /** @param manual the player asked for it: refusals get feedback, auto-fire stays quiet */
+  private launchMissiles(at: THREE.Vector3, manual: boolean): void {
+    const { enemies, effects, sfx, timers, upgrades, core, projectiles } = this.world;
     if (this.missileCooldown > 0) {
-      sfx.deny();
+      if (manual) sfx.deny();
       return;
     }
-    // Prefer enemies near the cursor, otherwise whatever is closest to the core.
-    let targets: Enemy[] = enemies.inRadius(aimPoint.x, aimPoint.z, 12, 'both', []);
+    // Prefer enemies near the aim point, otherwise whatever is closest to the core.
+    let targets: Enemy[] = enemies.inRadius(at.x, at.z, 12, 'both', []);
     if (targets.length === 0) targets = enemies.inRadius(0, 0, 48, 'both', []);
     if (targets.length === 0) {
-      sfx.deny();
-      this.world.events.emit('message', { text: 'No targets for missiles', tone: 'info' });
+      if (manual) {
+        sfx.deny();
+        this.world.events.emit('message', { text: 'No targets for missiles', tone: 'info' });
+      }
       return;
     }
-    targets.sort((a, b) => a.position.distanceToSquared(aimPoint) - b.position.distanceToSquared(aimPoint));
+    const aim = at.clone();
+    targets.sort((a, b) => a.position.distanceToSquared(aim) - b.position.distanceToSquared(aim));
 
     this.missileCooldown = upgrades.missileCooldown;
     const count = upgrades.missileCount;

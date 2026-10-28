@@ -18,6 +18,7 @@ export class WeaponSelector {
     const head = el('div', 'weapons-head', this.root);
     el('div', 'label', head, 'Core gun · Tab');
     this.autoSwitch = el('button', 'auto-switch', head);
+    this.autoSwitch.title = 'Core gun and swarm missiles fire on their own (T)';
     el('span', 'auto-key', this.autoSwitch, 'T');
     el('span', 'auto-text', this.autoSwitch, 'Auto-fire');
     el('span', 'auto-track', this.autoSwitch).appendChild(el('span', 'auto-knob'));
