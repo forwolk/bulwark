@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { GRAVITY } from '../config/balance';
 import { PALETTE as C } from '../config/palette';
 import type { TargetLayer } from '../config/structures';
-import { segmentPointDistSqXZ } from '../core/math';
+import { rand, segmentPointDistSqXZ } from '../core/math';
 import type { World } from '../core/World';
 import type { Ally } from '../entities/Ally';
 import type { Damageable } from '../entities/Damageable';
@@ -9,7 +10,10 @@ import type { Enemy } from '../entities/Enemy';
 import type { Structure } from '../entities/Structure';
 import { matchesLayer } from './EnemyManager';
 
-type Kind = 'bullet' | 'shell' | 'missile' | 'flak' | 'bolt' | 'artillery';
+type Kind = 'bullet' | 'shell' | 'missile' | 'flak' | 'bolt' | 'artillery' | 'rocket' | 'bomb';
+
+/** Enemy projectiles: these are the ones shield domes stop. */
+const HOSTILE: ReadonlySet<Kind> = new Set<Kind>(['bolt', 'artillery', 'rocket', 'bomb']);
 
 interface Projectile {
   kind: Kind;
@@ -55,7 +59,6 @@ export interface BulletParams {
   push?: number;
 }
 
-const GRAVITY = 30;
 const MAX = 1500;
 /** Knockback impulse from blasts. Light units near a drop get thrown into it. */
 const BLAST_PUSH = { shell: 17, missile: 10 };
@@ -192,6 +195,49 @@ export class ProjectileSystem {
     p.length = 1.2;
   }
 
+  /** Enemy rocket: launches upward, then curves onto a point near the target. */
+  fireEnemyRocket(from: THREE.Vector3, target: Damageable, damage: number, splash: number): void {
+    const p = this.acquire('rocket', from);
+    if (!p) return;
+    p.targetPoint.set(target.position.x + rand(-1.5, 1.5), 0, target.position.z + rand(-1.5, 1.5));
+    p.targetPoint.y = this.world.level.floorAt(p.targetPoint.x, p.targetPoint.z);
+    tmpDir.subVectors(p.targetPoint, from).setY(0).normalize();
+    p.vel.set(tmpDir.x * 4, 11, tmpDir.z * 4);
+    p.life = 5;
+    p.damage = damage;
+    p.splash = splash;
+    p.color.set(C.enemyGlowHot).multiplyScalar(5);
+    p.size = 0.22;
+    p.length = 1.1;
+  }
+
+  /** Bomb released from a bomber: keeps the plane's momentum and falls. */
+  fireBomb(from: THREE.Vector3, velocity: THREE.Vector3, damage: number, splash: number): void {
+    const p = this.acquire('bomb', from);
+    if (!p) return;
+    p.vel.copy(velocity);
+    p.life = 6;
+    p.damage = damage;
+    p.splash = splash;
+    p.color.set(C.enemyGlow).multiplyScalar(4);
+    p.size = 0.42;
+    p.length = 0.7;
+  }
+
+  /** Stops an enemy projectile at a shield dome it just flew into. */
+  private shielded(p: Projectile): boolean {
+    if (!HOSTILE.has(p.kind)) return false;
+    const hit = this.world.shields.intersect(p.prev, p.pos);
+    if (!hit) return false;
+    this.world.shields.absorb(hit, p.damage);
+    if (p.kind !== 'bolt') {
+      // Heavy ordnance still detonates against the dome; it just can't reach what's inside.
+      this.world.effects.explosion(hit.point, p.kind === 'bomb' ? 1.6 : 1, { color: C.enemyGlow, scorch: false, light: true, shake: 0.06 });
+      this.world.sfx.explosion(1, this.world.pan(hit.point.x));
+    }
+    return true;
+  }
+
   private setBallistic(p: Projectile, from: THREE.Vector3, to: THREE.Vector3, t: number): void {
     p.targetPoint.copy(to);
     p.vel.set((to.x - from.x) / t, (to.y - from.y + 0.5 * GRAVITY * t * t) / t, (to.z - from.z) / t);
@@ -243,6 +289,7 @@ export class ProjectileSystem {
       case 'artillery': {
         p.vel.y -= GRAVITY * dt;
         p.pos.addScaledVector(p.vel, dt);
+        if (this.shielded(p)) return true;
         p.trailTimer -= dt;
         if (p.trailTimer <= 0) {
           p.trailTimer = 0.03;
@@ -307,8 +354,47 @@ export class ProjectileSystem {
         }
         return false;
       }
+      case 'rocket': {
+        // Climb first, then steer down onto the target point with growing authority.
+        const speed = Math.min(30, 11 + p.age * 22);
+        const turn = Math.min(7, p.age * 6);
+        tmpDir.subVectors(p.targetPoint, p.pos).normalize().multiplyScalar(speed);
+        p.vel.lerp(tmpDir, Math.min(1, turn * dt));
+        p.vel.setLength(speed);
+        p.pos.addScaledVector(p.vel, dt);
+        if (this.shielded(p)) return true;
+        p.trailTimer -= dt;
+        if (p.trailTimer <= 0) {
+          p.trailTimer = 0.025;
+          effects.smokeTrail(p.pos, 0.9);
+          effects.emberTrail(p.pos, C.enemyGlowHot, 0.8);
+        }
+        const ground = level.floorAt(p.pos.x, p.pos.z);
+        if (p.pos.distanceToSquared(p.targetPoint) < 1.2 || p.pos.y <= ground || p.age >= p.life) {
+          this.splashDefenses(p.pos, p.splash, p.damage);
+          effects.explosion(p.pos.setY(Math.max(p.pos.y, ground + 0.2)), 1.3, { color: C.enemyGlow, debrisColor: effects.dustDarkColor, shake: 0.08 });
+          this.world.sfx.explosion(1.3, this.world.pan(p.pos.x));
+          return true;
+        }
+        return false;
+      }
+      case 'bomb': {
+        p.vel.y -= GRAVITY * dt;
+        p.pos.addScaledVector(p.vel, dt);
+        if (this.shielded(p)) return true;
+        const ground = level.heightAt(p.pos.x, p.pos.z);
+        if (p.pos.y <= ground || p.age >= p.life) {
+          p.pos.y = ground + 0.2;
+          this.splashDefenses(p.pos, p.splash, p.damage);
+          effects.explosion(p.pos, 2, { color: C.enemyGlow, debrisColor: effects.dustDarkColor, shake: 0.2 });
+          this.world.sfx.explosion(2, this.world.pan(p.pos.x));
+          return true;
+        }
+        return false;
+      }
       case 'bolt': {
         p.pos.addScaledVector(p.vel, dt);
+        if (this.shielded(p)) return true;
         p.trailTimer -= dt;
         if (p.trailTimer <= 0) {
           p.trailTimer = 0.04;

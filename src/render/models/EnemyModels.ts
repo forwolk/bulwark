@@ -9,7 +9,7 @@ export interface EnemyRig {
   body: THREE.Group;
   /** Limb pivots, animated by phase (legs swing on X, wings flap on Z). */
   limbs: THREE.Group[];
-  limbMode: 'swing' | 'scuttle' | 'flap';
+  limbMode: 'swing' | 'scuttle' | 'flap' | 'glide';
   muzzle: THREE.Object3D;
 }
 
@@ -137,6 +137,75 @@ const wasp: RigFactory = (m) => {
   return { root, body, limbs, limbMode: 'flap', muzzle: attachMuzzle(body, 0, 0, 1.3) };
 };
 
+/** Rocket artillery crawler: a low armoured body on stubby legs with a tilted launch rack. */
+const howler: RigFactory = (m) => {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  body.add(buildPart('howler-body', (b) => {
+    b.box(1.7, 0.6, 2.1, C.enemyShell, { p: [0, 0.75, 0] });
+    b.box(1.3, 0.3, 1.6, C.enemyShellLight, { p: [0, 1.15, -0.2] });
+    b.box(0.9, 0.4, 0.5, C.enemyBone, { p: [0, 0.75, 1.2] });
+    b.box(0.6, 0.08, 0.06, C.enemyGlow, { p: [0, 0.82, 1.47], glow: true });
+    // Launch rack, pitched up toward the target.
+    b.box(1.5, 0.9, 1.3, C.enemyShellLight, { p: [0, 1.75, -0.1], r: [-0.55, 0, 0] });
+    for (let i = 0; i < 6; i++) {
+      const x = ((i % 3) - 1) * 0.42;
+      const y = i < 3 ? 0.2 : -0.2;
+      b.box(0.24, 0.24, 0.1, C.enemyGlowHot, { p: [x, 1.75 + y * Math.cos(0.55) + 0.36, 0.4 + y * 0.5], r: [-0.55, 0, 0], glow: true });
+    }
+    b.cone(0.12, 0.6, 4, C.enemyBone, { p: [0.7, 1.35, -0.9], r: [-0.6, 0, 0.3] });
+    b.cone(0.12, 0.6, 4, C.enemyBone, { p: [-0.7, 1.35, -0.9], r: [-0.6, 0, -0.3] });
+  }, m));
+  root.add(body);
+
+  const limbs: THREE.Group[] = [];
+  for (let set = 0; set < 2; set++) {
+    const legs = buildPart(`howler-legs-${set}`, (b) => {
+      for (let i = 0; i < 2; i++) {
+        for (const side of [-1, 1]) {
+          if ((i + (side > 0 ? 1 : 0) + set) % 2 !== 0) continue;
+          b.box(1.0, 0.16, 0.2, C.enemyBone, { p: [side * 1.05, 0.45, (i - 0.5) * 1.3], r: [0, side * (i - 0.5) * 0.4, side * -0.6] });
+        }
+      }
+    }, m);
+    root.add(legs);
+    limbs.push(legs);
+  }
+  return { root, body, limbs, limbMode: 'scuttle', muzzle: attachMuzzle(body, 0, 2.3, 0.5) };
+};
+
+/** Bomber: broad swept wings, a long chitin fuselage and a glowing bomb bay underneath. */
+const vulture: RigFactory = (m) => {
+  const root = new THREE.Group();
+  const body = buildPart('vulture-body', (b) => {
+    b.octa(0.9, C.enemyShell, { s: [1, 0.6, 2.4] });
+    b.box(0.9, 0.3, 1.4, C.enemyShellLight, { p: [0, 0.35, -0.3] });
+    b.ico(0.45, C.enemyBone, { p: [0, 0.05, 1.9], s: [1, 0.8, 1.2] });
+    b.box(0.5, 0.08, 0.08, C.enemyGlowHot, { p: [0, 0.15, 2.38], glow: true });
+    b.box(0.7, 0.14, 1.0, C.enemyGlowHot, { p: [0, -0.5, 0], glow: true });
+    for (const side of [-1, 1]) {
+      b.cone(0.22, 0.7, 5, C.enemyGlow, { p: [side * 0.55, 0, -2.1], r: [-Math.PI / 2, 0, 0], glow: true });
+      b.box(0.08, 0.7, 0.8, C.enemyShellLight, { p: [side * 0.35, 0.45, -1.8], r: [0, 0, side * 0.3] });
+    }
+  }, m);
+  root.add(body);
+
+  const limbs: THREE.Group[] = [];
+  for (const side of [-1, 1]) {
+    const wing = new THREE.Group();
+    wing.position.set(side * 0.6, 0.1, 0);
+    wing.add(buildPart(`vulture-wing-${side}`, (b) => {
+      b.box(3.2, 0.1, 1.5, C.enemyShellLight, { p: [side * 1.6, 0, -0.3], r: [0, side * 0.35, 0] });
+      b.box(3.0, 0.14, 0.25, C.enemyBone, { p: [side * 1.5, 0.05, 0.35], r: [0, side * 0.35, 0] });
+      b.box(2.4, 0.06, 0.08, C.enemyGlow, { p: [side * 1.5, 0.08, -0.4], r: [0, side * 0.35, 0], glow: true });
+    }, m));
+    root.add(wing);
+    limbs.push(wing);
+  }
+  root.scale.setScalar(0.85);
+  return { root, body, limbs, limbMode: 'glide', muzzle: attachMuzzle(body, 0, -0.6, 0) };
+};
+
 const leviathan: RigFactory = (m) => {
   const root = new THREE.Group();
   const body = new THREE.Group();
@@ -177,7 +246,7 @@ const leviathan: RigFactory = (m) => {
   return { root, body, limbs, limbMode: 'swing', muzzle: attachMuzzle(body, 0, 2.5, 1.95) };
 };
 
-const FACTORIES: Record<EnemyKind, RigFactory> = { skitter, strider, juggernaut, wasp, leviathan };
+const FACTORIES: Record<EnemyKind, RigFactory> = { skitter, strider, juggernaut, wasp, howler, vulture, leviathan };
 
 export function createEnemyModel(kind: EnemyKind, materials: PartMaterials): EnemyRig {
   return FACTORIES[kind](materials);

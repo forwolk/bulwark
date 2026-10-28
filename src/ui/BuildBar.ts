@@ -7,7 +7,7 @@ const ICONS: Record<StructureKind, string> = {
   flak: '✶',
   mortar: '◎',
   arc: 'ϟ',
-  barrier: '▦',
+  barrier: '◠',
 };
 
 /** Bottom row of structure buttons with hotkeys, costs and tooltips. */
@@ -28,6 +28,7 @@ export class BuildBar {
       el('div', 'tooltip-title', tip, def.name);
       el('div', 'tooltip-body', tip, def.description);
       if (def.weapon) el('div', 'tooltip-stats', tip, `Range ${def.weapon.range} · DMG ${def.weapon.damage} · HP ${def.hp}`);
+      else if (def.shieldBoost) el('div', 'tooltip-stats', tip, `+${def.shieldBoost.hp} shield · +${def.shieldBoost.regen}/s recharge · HP ${def.hp}`);
       else el('div', 'tooltip-stats', tip, `HP ${def.hp}`);
 
       btn.addEventListener('click', () => {

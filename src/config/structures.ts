@@ -16,6 +16,13 @@ export interface WeaponDef {
   chains?: number;
 }
 
+/** What a Shield Capacitor adds to the core's dome while it stands. */
+export interface ShieldBoostDef {
+  hp: number;
+  /** Extra shield points regained per second. */
+  regen: number;
+}
+
 export interface StructureDef {
   kind: StructureKind;
   name: string;
@@ -25,6 +32,7 @@ export interface StructureDef {
   radius: number;
   description: string;
   weapon?: WeaponDef;
+  shieldBoost?: ShieldBoostDef;
 }
 
 export const STRUCTURES: Record<StructureKind, StructureDef> = {
@@ -70,12 +78,13 @@ export const STRUCTURES: Record<StructureKind, StructureDef> = {
   },
   barrier: {
     kind: 'barrier',
-    name: 'Barrier',
+    name: 'Capacitor',
     hotkey: '5',
-    cost: 30,
-    hp: 650,
+    cost: 150,
+    hp: 320,
     radius: 1,
-    description: 'Armoured wall segment. Blocks ground units. Hold to paint lines.',
+    description: "Feeds the core's energy dome: +450 shield strength and faster recharge while it stands.",
+    shieldBoost: { hp: 450, regen: 12 },
   },
 };
 

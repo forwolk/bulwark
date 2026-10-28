@@ -9,6 +9,7 @@ import { BuildSystem } from '../systems/BuildSystem';
 import { Economy } from '../systems/Economy';
 import { EnemyManager } from '../systems/EnemyManager';
 import { PlayerWeapons } from '../systems/PlayerWeapons';
+import { ShieldSystem } from '../systems/ShieldSystem';
 import { SquadManager } from '../systems/SquadManager';
 import { ProjectileSystem } from '../systems/ProjectileSystem';
 import { StructureManager } from '../systems/StructureManager';
@@ -53,6 +54,7 @@ export class World {
   readonly enemies: EnemyManager;
   readonly structures: StructureManager;
   readonly squads: SquadManager;
+  readonly shields: ShieldSystem;
   readonly projectiles: ProjectileSystem;
   readonly weapons: PlayerWeapons;
   readonly waves: WaveManager;
@@ -76,6 +78,7 @@ export class World {
     this.economy = new Economy(this.events);
     this.upgrades = new UpgradeSystem(this.events, this.economy, this.core);
     this.enemies = new EnemyManager(this);
+    this.shields = new ShieldSystem(this);
     this.structures = new StructureManager(this);
     this.squads = new SquadManager(this);
     this.projectiles = new ProjectileSystem(this);
@@ -144,6 +147,7 @@ export class World {
     this.enemies.update(dt);
     this.structures.update(dt);
     this.squads.update(dt);
+    this.shields.update(dt);
     this.projectiles.update(dt);
     this.core.update(dt, this.effects);
     this.effects.update(dt);
@@ -165,6 +169,7 @@ export class World {
     this.projectiles.clear();
     this.effects.clear();
     this.upgrades.reset();
+    this.shields.reset();
     this.economy.reset();
     this.weapons.reset();
     this.waves.reset();

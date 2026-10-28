@@ -293,6 +293,57 @@ export class Effects {
     this.impact(to, color, 1.4);
   }
 
+  /** Enemy fire absorbed by a shield dome: a splash of energy sparks and a bright flare at the surface. */
+  shieldImpact(pos: THREE.Vector3, color: number, scale = 1): void {
+    const hot = hdr(color, 4);
+    const n = Math.round(6 * scale) + 4;
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, TAU);
+      const s = rand(3, 9) * scale;
+      this.sparks.spawn({ x: pos.x, y: pos.y, z: pos.z, vx: Math.cos(a) * s, vy: rand(1, 6), vz: Math.sin(a) * s, life: rand(0.15, 0.35), size: 0.1, sizeEnd: 0, color: hot, colorEnd: BLACK, stretch: 0.03, drag: 2 });
+    }
+    this.flashes.spawn({ x: pos.x, y: pos.y, z: pos.z, life: 0.12, size: 0.4 * scale, sizeEnd: 1.2 * scale, color: hdr(color, 3), colorEnd: BLACK, curve: 'easeOut' });
+    this.glows.spawn(pos, 3 * scale, 1.6 * scale, hdr(color, 0.6), 0.18);
+  }
+
+  /** Glowing particle drifting from a Shield Capacitor toward the dome. */
+  energyMote(pos: THREE.Vector3, vel: THREE.Vector3, color: number): void {
+    this.glows.spawn(pos, 0.9, 0.3, hdr(color, 0.9), 1.4, vel);
+  }
+
+  /** A dome collapsing: the shell bursts into glowing shards, with sparks around its base and a flash. */
+  shieldBreak(center: THREE.Vector3, radius: number, color: number): void {
+    const hot = hdr(color, 5);
+    for (let i = 0; i < 70; i++) {
+      // Random point on the hemisphere; shards fly outward and tumble down.
+      const a = rand(0, TAU);
+      const el = Math.asin(rand(0, 1));
+      const nx = Math.cos(el) * Math.cos(a);
+      const ny = Math.sin(el);
+      const nz = Math.cos(el) * Math.sin(a);
+      const s = rand(2, 7);
+      this.flashes.spawn({
+        x: center.x + nx * radius, y: center.y + ny * radius, z: center.z + nz * radius,
+        vx: nx * s, vy: ny * s + rand(0, 3), vz: nz * s,
+        life: rand(0.5, 1.1), size: rand(0.15, 0.35), sizeEnd: 0, color: hdr(color, rand(2, 4)), colorEnd: BLACK,
+        gravity: 14, spin: rand(-8, 8), curve: 'linear',
+      });
+    }
+    for (let i = 0; i < 48; i++) {
+      const a = (i / 48) * TAU;
+      const up = rand(0, 1);
+      const r = radius * Math.cos(up * 1.2);
+      this.sparks.spawn({
+        x: center.x + Math.cos(a) * r, y: center.y + Math.sin(up * 1.2) * radius, z: center.z + Math.sin(a) * r,
+        vx: Math.cos(a) * rand(2, 6), vy: rand(-2, 3), vz: Math.sin(a) * rand(2, 6),
+        life: rand(0.3, 0.6), size: 0.14, sizeEnd: 0, color: hot, colorEnd: BLACK, stretch: 0.04, gravity: 8,
+      });
+    }
+    this.rings.spawn({ x: center.x, y: center.y + 0.2, z: center.z, life: 0.5, size: radius * 0.9, sizeEnd: radius * 1.5, color: hdr(color, 2.5), colorEnd: BLACK, curve: 'easeOut' });
+    this.glows.spawn(center.clone().setY(center.y + radius * 0.5), radius * 1.2, radius * 2, hdr(color, 0.4), 0.35);
+    this.shake(0.12);
+  }
+
   /** Thin instant beam (wasp lasers). */
   laser(from: THREE.Vector3, to: THREE.Vector3, color: number): void {
     const dir = new THREE.Vector3().subVectors(to, from);

@@ -12,6 +12,8 @@ export class Hud {
   private readonly coreTrail: HTMLElement;
   private readonly coreText: HTMLElement;
   private readonly corePanel: HTMLElement;
+  private readonly shieldFill: HTMLElement;
+  private readonly shieldText: HTMLElement;
   private readonly scrapValue: HTMLElement;
   private readonly banner: HTMLElement;
   private readonly bannerSub: HTMLElement;
@@ -40,6 +42,10 @@ export class Hud {
     this.coreTrail = el('div', 'bar-trail', bar);
     this.coreFill = el('div', 'bar-fill', bar);
     this.coreText = el('div', 'sub', this.corePanel, '');
+    const shieldRow = el('div', 'shield-row', this.corePanel);
+    const shieldBar = el('div', 'shield-bar', shieldRow);
+    this.shieldFill = el('div', 'shield-fill', shieldBar);
+    this.shieldText = el('div', 'shield-text', shieldRow, '');
 
     const scrap = el('div', 'panel stat scrap', top);
     el('div', 'label', scrap, 'Scrap');
@@ -119,6 +125,10 @@ export class Hud {
     this.coreFill.style.width = `${hpFrac * 100}%`;
     this.coreTrail.style.width = `${this.trailHp * 100}%`;
     setText(this.coreText, `${Math.ceil(core.hp)} / ${core.maxHp}`);
+    const shield = world.shields.core;
+    this.shieldFill.style.width = `${(shield.hp / shield.maxHp) * 100}%`;
+    this.shieldFill.classList.toggle('down', !shield.up);
+    setText(this.shieldText, shield.up ? `Shield ${Math.ceil(shield.hp)} / ${shield.maxHp}` : 'Shield rebooting');
 
     // Count the scrap display toward the real value for a satisfying tick-up.
     const diff = economy.amount - this.displayedScrap;

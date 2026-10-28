@@ -22,7 +22,6 @@ export class BuildSystem {
   private readonly rangeRing: THREE.Mesh;
   private readonly hoverRing: THREE.Mesh;
   private readonly cell = new THREE.Vector3();
-  private lastPlacedKey = '';
   private error: PlacementError = null;
   /** Holds the cannon after a placement click until the button is released. */
   private fireLock = false;
@@ -70,8 +69,7 @@ export class BuildSystem {
     if (this.selected) {
       const def = STRUCTURES[this.selected];
       const err = this.error ? ` — ${ERROR_TEXT[this.error]}` : '';
-      const paint = this.selected === 'barrier' ? ' · drag to paint' : ' · Shift: keep placing';
-      return `Place ${def.name} (${def.cost})${err} · RMB/Esc cancel${paint}`;
+      return `Place ${def.name} (${def.cost})${err} · RMB/Esc cancel · Shift: keep placing`;
     }
     if (this.hovered) return `${this.hovered.def.name} · [X] Sell for ${this.world.structures.sellValue(this.hovered)}`;
     return '';
@@ -108,24 +106,17 @@ export class BuildSystem {
       if (o instanceof THREE.Mesh) o.material = mat;
     });
 
-    const weapon = STRUCTURES[kind].weapon;
-    this.rangeRing.visible = !!weapon;
-    if (weapon) {
+    const ring = STRUCTURES[kind].weapon?.range;
+    this.rangeRing.visible = ring !== undefined;
+    if (ring !== undefined) {
       this.rangeRing.position.set(this.cell.x, 0.1, this.cell.z);
-      this.rangeRing.scale.setScalar(weapon.range);
+      this.rangeRing.scale.setScalar(ring);
     }
 
-    const key = `${this.cell.x},${this.cell.z}`;
-    const painting = kind === 'barrier' && input.isButtonDown(0) && key !== this.lastPlacedKey;
-    if (input.wasButtonPressed(0) || painting) {
-      if (valid) {
-        this.placeAt(kind);
-        this.lastPlacedKey = key;
-      } else if (input.wasButtonPressed(0)) {
-        this.world.sfx.deny();
-      }
+    if (input.wasButtonPressed(0)) {
+      if (valid) this.placeAt(kind);
+      else this.world.sfx.deny();
     }
-    if (!input.isButtonDown(0)) this.lastPlacedKey = '';
   }
 
   private placeAt(kind: StructureKind): void {
@@ -133,7 +124,7 @@ export class BuildSystem {
     if (!s) return;
     this.world.effects.structurePlaced(s.position);
     this.world.sfx.build();
-    const keep = kind === 'barrier' || this.world.input.isKeyDown('ShiftLeft') || this.world.input.isKeyDown('ShiftRight');
+    const keep = this.world.input.isKeyDown('ShiftLeft') || this.world.input.isKeyDown('ShiftRight');
     if (!keep) this.select(null);
   }
 

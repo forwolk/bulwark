@@ -4,7 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+import { SanitizeShader } from './SanitizeShader';
 import { RENDER } from '../config/graphics';
 
 /**
@@ -14,6 +14,7 @@ import { RENDER } from '../config/graphics';
  * Only the scene pass is multisampled. Bloom blends its result back into its input buffer, and
  * drawing into a multisampled buffer that already has content makes tile-based GPUs (Apple Silicon)
  * reload every sample from memory, so the resolved scene is copied into a single-sample buffer first.
+ * That copy also scrubs NaNs and caps brightness, so a stray bad pixel can't blow up in the bloom.
  */
 export class Renderer {
   readonly webgl: THREE.WebGLRenderer;
@@ -40,7 +41,7 @@ export class Renderer {
     this.composer.readBuffer.samples = RENDER.msaaSamples;
     this.composer.writeBuffer.samples = 0;
     this.composer.addPass(new RenderPass(this.scene, camera));
-    this.composer.addPass(new ShaderPass(CopyShader));
+    this.composer.addPass(new ShaderPass(SanitizeShader));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.5, 1.0);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());

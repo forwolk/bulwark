@@ -29,23 +29,28 @@ export const WAVES: WaveDef[] = [
     { kind: 'wasp', count: 8, interval: 0.7, delay: 0 },
     { kind: 'skitter', count: 20, interval: 0.3, delay: 4 },
     { kind: 'strider', count: 6, interval: 1.2, delay: 10 },
+    { kind: 'howler', count: 2, interval: 3, delay: 14 },
   ] },
   { groups: [
     { kind: 'juggernaut', count: 2, interval: 4, delay: 0 },
     { kind: 'skitter', count: 30, interval: 0.25, delay: 2 },
     { kind: 'strider', count: 8, interval: 1, delay: 8 },
+    { kind: 'howler', count: 3, interval: 2.5, delay: 10 },
   ] },
   { groups: [
     { kind: 'wasp', count: 16, interval: 0.4, delay: 0 },
     { kind: 'wasp', count: 10, interval: 0.4, delay: 10 },
     { kind: 'strider', count: 10, interval: 0.9, delay: 3 },
     { kind: 'skitter', count: 24, interval: 0.25, delay: 12 },
+    { kind: 'vulture', count: 3, interval: 3, delay: 6 },
   ] },
   { groups: [
     { kind: 'juggernaut', count: 4, interval: 3, delay: 0 },
     { kind: 'skitter', count: 40, interval: 0.18, delay: 3 },
     { kind: 'strider', count: 12, interval: 0.8, delay: 8 },
     { kind: 'wasp', count: 10, interval: 0.5, delay: 14 },
+    { kind: 'howler', count: 4, interval: 2, delay: 6 },
+    { kind: 'vulture', count: 2, interval: 3, delay: 16 },
   ] },
   { groups: [
     { kind: 'skitter', count: 30, interval: 0.15, delay: 0 },
@@ -53,12 +58,16 @@ export const WAVES: WaveDef[] = [
     { kind: 'wasp', count: 20, interval: 0.35, delay: 6 },
     { kind: 'juggernaut', count: 3, interval: 2.5, delay: 10 },
     { kind: 'strider', count: 14, interval: 0.6, delay: 14 },
+    { kind: 'vulture', count: 4, interval: 2.5, delay: 4 },
+    { kind: 'howler', count: 4, interval: 2, delay: 18 },
   ] },
   { groups: [
     { kind: 'juggernaut', count: 6, interval: 2, delay: 0 },
     { kind: 'strider', count: 18, interval: 0.5, delay: 4 },
     { kind: 'wasp', count: 24, interval: 0.3, delay: 8 },
     { kind: 'skitter', count: 40, interval: 0.15, delay: 12 },
+    { kind: 'howler', count: 6, interval: 1.6, delay: 2 },
+    { kind: 'vulture', count: 5, interval: 2.5, delay: 12 },
   ] },
   { groups: [
     { kind: 'skitter', count: 50, interval: 0.12, delay: 0 },
@@ -66,6 +75,8 @@ export const WAVES: WaveDef[] = [
     { kind: 'juggernaut', count: 8, interval: 1.6, delay: 8 },
     { kind: 'strider', count: 20, interval: 0.45, delay: 12 },
     { kind: 'skitter', count: 40, interval: 0.12, delay: 20 },
+    { kind: 'vulture', count: 7, interval: 2, delay: 5 },
+    { kind: 'howler', count: 6, interval: 1.5, delay: 15 },
   ] },
   { groups: [
     { kind: 'leviathan', count: 1, interval: 1, delay: 2, angle: 180 },
@@ -73,5 +84,7 @@ export const WAVES: WaveDef[] = [
     { kind: 'strider', count: 16, interval: 0.6, delay: 8 },
     { kind: 'wasp', count: 24, interval: 0.4, delay: 16 },
     { kind: 'juggernaut', count: 6, interval: 2.5, delay: 24 },
+    { kind: 'howler', count: 5, interval: 2, delay: 10 },
+    { kind: 'vulture', count: 6, interval: 2.5, delay: 20 },
   ] },
 ];

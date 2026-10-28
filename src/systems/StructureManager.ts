@@ -43,6 +43,7 @@ export class StructureManager {
     s.addTo(this.world.scene);
     this.list.push(s);
     this.grid.set(cellKey(x, z), s);
+    this.world.shields.refresh();
     this.world.stats.structuresBuilt++;
     this.world.events.emit('structureBuilt', { kind });
     return s;
@@ -92,7 +93,7 @@ export class StructureManager {
       const dx = e.position.x - s.position.x;
       const dz = e.position.z - s.position.z;
       const min = s.radius + e.def.radius;
-      // Square-ish footprint for walls so lines of barriers have no gaps.
+      // Square-ish footprint so neighbouring structures leave no gaps to slip through.
       if (Math.abs(dx) > min || Math.abs(dz) > min) continue;
       const d = Math.hypot(dx, dz);
       if (d >= min + 0.35) continue;
@@ -140,6 +141,7 @@ export class StructureManager {
     s.hp = 0;
     this.list = this.list.filter((other) => other !== s);
     this.grid.delete(cellKey(s.position.x, s.position.z));
+    this.world.shields.refresh();
     s.dispose(this.world.scene);
   }
 
@@ -147,5 +149,6 @@ export class StructureManager {
     for (const s of this.list) s.dispose(this.world.scene);
     this.list = [];
     this.grid.clear();
+    this.world.shields.refresh();
   }
 }

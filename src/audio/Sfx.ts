@@ -187,6 +187,43 @@ export class Sfx {
     this.noise(ctx, 0.1, 0.03 + charge * 0.03, 'bandpass', 2600, 2400, pan, 3);
   }
 
+  /** Shot absorbed by a shield dome: a bright electric crackle. */
+  shieldHit(pan: number): void {
+    const ctx = this.gate('shieldHit', 0.06);
+    if (!ctx) return;
+    this.noise(ctx, 0.12, 0.12, 'bandpass', 4200, 1800, pan, 4);
+    this.tone(ctx, 'sine', 1300, 700, 0.12, 0.05, pan);
+  }
+
+  shieldDown(pan: number): void {
+    const ctx = this.gate('shieldDown', 0.3);
+    if (!ctx) return;
+    this.tone(ctx, 'sawtooth', 900, 80, 0.6, 0.12, pan);
+    this.noise(ctx, 0.5, 0.2, 'lowpass', 3000, 200, pan);
+  }
+
+  shieldUp(pan: number): void {
+    const ctx = this.gate('shieldUp', 0.3);
+    if (!ctx) return;
+    this.tone(ctx, 'sine', 220, 880, 0.45, 0.08, pan);
+    this.tone(ctx, 'triangle', 330, 1320, 0.45, 0.04, pan, 0.05);
+  }
+
+  /** Enemy rocket leaving its rack. */
+  rocketLaunch(pan: number): void {
+    const ctx = this.gate('rocketLaunch', 0.08);
+    if (!ctx) return;
+    this.noise(ctx, 0.35, 0.18, 'bandpass', 900, 2600, pan, 1.5);
+    this.tone(ctx, 'sawtooth', 160, 90, 0.2, 0.05, pan);
+  }
+
+  /** Falling bomb whistle. */
+  bombWhistle(pan: number): void {
+    const ctx = this.gate('bombWhistle', 0.25);
+    if (!ctx) return;
+    this.tone(ctx, 'sine', 1500, 500, 0.75, 0.05, pan);
+  }
+
   /** Rail lance discharge: a sharp downward zip over a crackle. */
   rail(pan: number): void {
     const ctx = this.gate('rail', 0.08);

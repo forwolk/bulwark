@@ -1,6 +1,6 @@
-export type EnemyKind = 'skitter' | 'strider' | 'juggernaut' | 'wasp' | 'leviathan';
+export type EnemyKind = 'skitter' | 'strider' | 'juggernaut' | 'wasp' | 'howler' | 'vulture' | 'leviathan';
 
-export type EnemyAttackStyle = 'melee' | 'bolt' | 'laser' | 'artillery';
+export type EnemyAttackStyle = 'melee' | 'bolt' | 'laser' | 'artillery' | 'rockets' | 'bombs';
 
 export interface EnemyAttackDef {
   style: EnemyAttackStyle;
@@ -10,6 +10,8 @@ export interface EnemyAttackDef {
   interval: number;
   projectileSpeed?: number;
   splash?: number;
+  /** Rockets per salvo, or bombs per stick. */
+  salvo?: number;
 }
 
 export interface EnemyDef {
@@ -29,6 +31,8 @@ export interface EnemyDef {
   aggroRange: number;
   attack: EnemyAttackDef;
   spawner?: { kind: EnemyKind; count: number; interval: number };
+  /** Bombers fly continuous passes over their target instead of stopping to attack. */
+  bomber?: { turnRate: number };
   showHealthBar?: boolean;
 }
 
@@ -89,6 +93,38 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     deathSize: 0.9,
     aggroRange: 10,
     attack: { style: 'laser', range: 7, damage: 7, interval: 0.75 },
+  },
+  howler: {
+    kind: 'howler',
+    name: 'Howler',
+    hp: 190,
+    speed: 2.6,
+    radius: 1.3,
+    armor: 2,
+    flying: false,
+    altitude: 0,
+    reward: 26,
+    deathSize: 1.5,
+    aggroRange: 30,
+    attack: { style: 'rockets', range: 30, damage: 26, interval: 5.5, splash: 2.6, salvo: 4 },
+    showHealthBar: true,
+  },
+  vulture: {
+    kind: 'vulture',
+    name: 'Vulture',
+    hp: 240,
+    speed: 9,
+    radius: 1.6,
+    armor: 1,
+    flying: true,
+    // Cruises above the core's dome so its bombs fall onto the shield, not inside it.
+    altitude: 18,
+    reward: 32,
+    deathSize: 1.8,
+    aggroRange: 40,
+    attack: { style: 'bombs', range: 0, damage: 55, interval: 3.4, splash: 3.6, salvo: 3 },
+    bomber: { turnRate: 1.1 },
+    showHealthBar: true,
   },
   leviathan: {
     kind: 'leviathan',

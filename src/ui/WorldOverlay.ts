@@ -41,13 +41,13 @@ export class WorldOverlay {
     return this.bars[index];
   }
 
-  private placeBar(index: number, pos: THREE.Vector3, frac: number, width: number, enemy: boolean): boolean {
+  private placeBar(index: number, pos: THREE.Vector3, frac: number, width: number, variant: 'ally' | 'enemy'): boolean {
     if (!this.world.cameraRig.toScreen(pos, screen)) return false;
     const bar = this.bar(index);
     bar.style.display = 'block';
     bar.style.width = `${width}px`;
     bar.style.transform = `translate(${screen.x - width / 2}px, ${screen.y}px)`;
-    bar.classList.toggle('enemy', enemy);
+    bar.classList.toggle('enemy', variant === 'enemy');
     const fill = bar.firstElementChild as HTMLElement;
     fill.style.width = `${Math.max(0, frac) * 100}%`;
     fill.classList.toggle('low', frac < 0.35);
@@ -65,19 +65,19 @@ export class WorldOverlay {
 
     if (playing) {
       for (const s of structures.all) {
-        if (s.hp < s.maxHp && this.placeBar(used, tmp.set(s.position.x, 2.8, s.position.z), s.hp / s.maxHp, 38, false)) used++;
+        if (s.hp < s.maxHp && this.placeBar(used, tmp.set(s.position.x, 2.8, s.position.z), s.hp / s.maxHp, 38, 'ally')) used++;
       }
       for (const a of this.world.squads.all) {
         if (!a.alive || a.hp >= a.maxHp) continue;
         tmp.set(a.position.x, a.aimHeight + 1.2 + a.radius * 0.5, a.position.z);
-        if (this.placeBar(used, tmp, a.hp / a.maxHp, 24 + a.radius * 16, false)) used++;
+        if (this.placeBar(used, tmp, a.hp / a.maxHp, 24 + a.radius * 16, 'ally')) used++;
       }
       for (const e of enemies.all) {
         if (!e.def.showHealthBar || e.hp >= e.def.hp) continue;
         const big = e.def.kind === 'leviathan';
         const base = e.flying ? e.position.y - e.def.altitude : e.position.y;
         tmp.set(e.position.x, base + e.def.radius * (big ? 2.4 : 2) + 1, e.position.z);
-        if (this.placeBar(used, tmp, e.hp / e.def.hp, big ? 180 : 56, true)) used++;
+        if (this.placeBar(used, tmp, e.hp / e.def.hp, big ? 180 : 56, 'enemy')) used++;
       }
     }
     for (let i = used; i < this.bars.length; i++) this.bars[i].style.display = 'none';

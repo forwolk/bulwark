@@ -10,6 +10,12 @@ There are three battlefields, picked on the title screen. Each has its own look 
 | **Sunscar Dunes**: pale desert flats walled in by sandstone mesas | 4 canyons | Quicksand pits |
 | **Mossgate Hollow**: grassy stone terraces with standing stones | 4 dirt ramps down from the rim | Ravines with a stream |
 
+### Shields and the newer threats
+- **Core shield**: a single energy dome (radius 15) over the main gun. Enemy bolts, wasp lasers, artillery, rockets and bombs entering from outside are absorbed at its surface; fire that starts inside, and melee units, get through. It recharges after 3 s without hits. When drained it collapses into shards and reboots after 8 s at 30%, building back up from its base ring. Its strength shows under Core Integrity in the HUD. The logic lives in `systems/ShieldSystem.ts`, and the layered shader (flowing energy, filaments, hex lattice, ripples, rim, base ring) in `vfx/ShieldDome.ts`.
+- **Capacitor** (key 5): adds +450 dome strength and +12/s recharge while it stands, and streams energy motes into the dome. Capacitors outside the dome can be bombed.
+- **Howler** (from wave 3): rocket artillery that stops 30 units out and fires 4-rocket salvos. It outranges most turrets.
+- **Vulture** (from wave 5): a bomber cruising above the dome that flies passes over its target. It releases a stick of 3 bombs early enough to land on it, overshoots, loops back and repeats. Flak and Repeaters shoot it down.
+
 ### Skipping ahead
 - **Starting wave** (title screen): begin a run at any wave from 1 to 10. You get catch-up scrap of 80% of what the skipped waves would have paid (kills plus clear bonuses), computed from the wave tables in `systems/waveRewards.ts`. The choice is remembered.
 - **Call the next wave early** (Enter or the button during combat): the next wave starts on top of the current one. You're paid the current wave's clear bonus right away, plus 3 scrap per enemy still alive or to come. It's disabled for 2 s after each launch so a double-tap of Enter doesn't skip a wave.
@@ -59,7 +65,7 @@ Requires Node 16+. Vite is pinned to v4 for Node 16 compatibility. Once you're o
 | T | Toggle auto-fire (also a switch in the Core gun panel) |
 | RMB | Swarm missiles at enemies near the cursor |
 | Space | Nova pulse: damage plus knockback around the core |
-| 1–5 | Select Repeater / Flak / Mortar / Arc Coil / Barrier |
+| 1–5 | Select Repeater / Flak / Mortar / Arc Coil / Capacitor |
 | Q W E R | Deploy a squad: Sentinels / Lancers / Rampart / Kestrels |
 | Shift + click | Keep placing the same structure |
 | X | Sell the hovered structure |

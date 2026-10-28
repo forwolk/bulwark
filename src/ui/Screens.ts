@@ -57,7 +57,7 @@ export class Screens {
       ['T', 'Toggle auto-fire'],
       ['RMB', 'Swarm missiles at cursor'],
       ['Space', 'Nova pulse: knockback blast'],
-      ['1 – 5', 'Build turrets and barriers'],
+      ['1 – 5', 'Build turrets and shields'],
       ['Q W E R', 'Deploy squads'],
       ['X', 'Sell hovered structure'],
       ['Wheel · P · M', 'Zoom · pause · mute'],

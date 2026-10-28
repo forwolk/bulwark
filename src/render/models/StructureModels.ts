@@ -129,12 +129,18 @@ const arc: RigFactory = (m) => {
 
 const barrier: RigFactory = (m) => {
   const root = new THREE.Group();
+  // Shield pylon: a hexagonal plinth, three fins and a mast topped with the emitter.
   root.add(buildPart('barrier', (b) => {
-    b.box(1.95, 1.2, 1.95, C.playerSteel, { p: [0, 0.6, 0] });
-    b.box(1.7, 0.35, 1.7, C.playerPlate, { p: [0, 1.37, 0] });
-    b.box(2.0, 0.1, 2.0, C.playerGlow, { p: [0, 0.95, 0], glow: true });
-    b.box(2.02, 0.25, 0.5, C.playerAccent, { p: [0, 0.35, 0] });
-    b.box(0.5, 0.25, 2.02, C.playerAccent, { p: [0, 0.35, 0] });
+    b.cyl(1.0, 1.15, 0.6, 6, C.playerSteel, { p: [0, 0.3, 0] });
+    b.cyl(0.9, 0.9, 0.08, 6, C.playerAccent, { p: [0, 0.62, 0] });
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      b.box(0.18, 1.5, 0.8, C.playerPlate, { p: [Math.sin(a) * 0.55, 1.2, Math.cos(a) * 0.55], r: [0, a, 0] });
+      b.box(0.06, 1.1, 0.08, C.playerGlow, { p: [Math.sin(a) * 0.66, 1.25, Math.cos(a) * 0.66], r: [0, a, 0], glow: true });
+    }
+    b.cyl(0.18, 0.26, 2.2, 6, C.playerSteelDark, { p: [0, 1.7, 0] });
+    b.torus(0.42, 0.06, C.playerGlow, { p: [0, 2.55, 0], r: [Math.PI / 2, 0, 0], glow: true }, 12);
+    b.ico(0.32, C.playerGlowHot, { p: [0, 2.95, 0], glow: true });
   }, m));
   return { root, muzzles: [] };
 };

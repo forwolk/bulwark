@@ -298,3 +298,9 @@ html, body {
 .step-wide { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
 .step-value { min-width: 64px; text-align: center; font-family: var(--display); font-size: 16px; color: var(--cyan); }
 .step-note { margin-left: 6px; font-size: 13px; color: var(--amber); }
+/* Core shield strength, under the integrity bar. */
+.shield-row { display: flex; align-items: center; gap: 10px; margin-top: 3px; }
+.shield-bar { flex: 1; height: 6px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(143, 232, 255, 0.35); }
+.shield-fill { height: 100%; background: linear-gradient(90deg, #1d6fe0, #8fe8ff); box-shadow: 0 0 8px #8fe8ff; transition: width 0.15s; }
+.shield-fill.down { background: var(--amber); box-shadow: none; }
+.shield-text { font-size: 12px; color: #8fe8ff; white-space: nowrap; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85); }

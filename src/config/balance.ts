@@ -7,12 +7,25 @@ export const ARENA = {
   gridSize: 2,
 } as const;
 
+/** Downward acceleration for shells, bombs and other ballistic projectiles. */
+export const GRAVITY = 30;
+
 export const CORE = {
   maxHp: 2000,
   radius: 3.2,
   muzzleHeight: 2.6,
   turnSpeed: 9, // rad/s
   // Main gun modes live in config/coreWeapons.ts.
+  /** Energy dome over the core. Shield Capacitors add to its strength and recharge. */
+  shield: {
+    radius: 15,
+    hp: 600,
+    regen: 30,
+    /** Seconds without hits before it starts recharging. */
+    regenDelay: 3,
+    /** Seconds offline after collapsing; it returns at 30% strength. */
+    rebootTime: 8,
+  },
   missiles: {
     count: 6,
     cooldown: 9,

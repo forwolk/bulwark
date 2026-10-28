@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GRAVITY } from '../config/balance';
 import { PALETTE as C } from '../config/palette';
 import { damp, rand, rotateTowards, TAU } from '../core/math';
 import type { World } from '../core/World';
@@ -6,6 +7,8 @@ import type { Damageable } from '../entities/Damageable';
 import type { Enemy } from '../entities/Enemy';
 
 const neighbors: Enemy[] = [];
+/** Bombs keep this share of the bomber's forward speed when released. */
+const BOMB_DRIFT = 0.8;
 const muzzle = new THREE.Vector3();
 const aim = new THREE.Vector3();
 const flow = { x: 0, z: 0 };
@@ -43,6 +46,12 @@ export function updateEnemyAI(e: Enemy, dt: number, world: World): void {
     e.stun -= dt;
     e.moving = false;
     e.velocity.set(0, 0, 0);
+    followGround(e, dt, world);
+    return;
+  }
+
+  if (def.bomber) {
+    updateBomber(e, dt, world);
     followGround(e, dt, world);
     return;
   }
@@ -202,13 +211,36 @@ function attack(e: Enemy, target: Damageable, world: World): void {
       effects.muzzleFlash(muzzle, aim.clone().sub(muzzle).normalize(), C.enemyPlasma, 0.6);
       sfx.enemyShot(pan);
       break;
-    case 'laser':
+    case 'laser': {
       e.muzzleWorld(muzzle);
       aim.x += rand(-0.4, 0.4);
       aim.z += rand(-0.4, 0.4);
-      effects.laser(muzzle, aim, C.enemyGlow);
-      world.damageDefense(target, def.attack.damage);
+      // A shield dome in the way takes the beam instead.
+      const blocked = world.shields.intersect(muzzle, aim);
+      effects.laser(muzzle, blocked ? blocked.point : aim, C.enemyGlow);
+      if (blocked) world.shields.absorb(blocked, def.attack.damage);
+      else world.damageDefense(target, def.attack.damage);
       sfx.laser(pan);
+      break;
+    }
+    case 'rockets': {
+      // A ripple-fired salvo; the launcher keeps firing even if its target dies mid-salvo.
+      const salvo = def.attack.salvo ?? 4;
+      for (let i = 0; i < salvo; i++) {
+        world.timers.after(i * 0.2, () => {
+          if (!e.alive) return;
+          e.muzzleWorld(muzzle);
+          muzzle.x += rand(-0.4, 0.4);
+          world.projectiles.fireEnemyRocket(muzzle, target, def.attack.damage, def.attack.splash ?? 2.5);
+          effects.muzzleFlash(muzzle, aim.set(Math.sin(e.yaw) * 0.5, 1, Math.cos(e.yaw) * 0.5).normalize(), C.enemyGlowHot, 0.9);
+          effects.smokeTrail(muzzle, 1.6);
+          sfx.rocketLaunch(world.pan(muzzle.x));
+        });
+      }
+      break;
+    }
+    case 'bombs':
+      // Bombers attack from updateBomber, never through the stop-and-shoot path.
       break;
     case 'artillery':
       e.muzzleWorld(muzzle);
@@ -217,6 +249,51 @@ function attack(e: Enemy, target: Damageable, world: World): void {
       effects.shake(0.12);
       sfx.mortar(pan);
       break;
+  }
+}
+
+/**
+ * Bombing runs: fly at constant speed with a limited turn rate, so the plane overshoots its
+ * target and loops back for another pass. Bombs are released early enough to land on it.
+ */
+function updateBomber(e: Enemy, dt: number, world: World): void {
+  const def = e.def;
+  const turnRate = def.bomber?.turnRate ?? 1;
+  e.retargetTimer -= dt;
+  if (e.retargetTimer <= 0 || !e.target || !e.target.alive) {
+    // Mostly the core, sometimes a structure, so bombers spread their attention.
+    const structure = Math.random() < 0.4 ? world.structures.nearest(e.position.x, e.position.z, def.aggroRange) : null;
+    e.target = structure ?? world.core;
+    e.retargetTimer = rand(4, 7);
+  }
+  const target = e.target ?? world.core;
+
+  const desired = Math.atan2(target.position.x - e.position.x, target.position.z - e.position.z);
+  e.yaw = rotateTowards(e.yaw, desired, turnRate * dt);
+  e.velocity.set(Math.sin(e.yaw) * def.speed, 0, Math.cos(e.yaw) * def.speed);
+  e.position.x += e.velocity.x * dt;
+  e.position.z += e.velocity.z * dt;
+  e.moving = true;
+
+  e.attackTimer -= dt;
+  if (e.attackTimer > 0) return;
+  const height = Math.max(1, e.position.y - world.level.floorAt(e.position.x, e.position.z));
+  const fall = Math.sqrt((2 * height) / GRAVITY);
+  const lead = def.speed * BOMB_DRIFT * fall;
+  const ix = e.position.x + Math.sin(e.yaw) * lead;
+  const iz = e.position.z + Math.cos(e.yaw) * lead;
+  if (Math.hypot(ix - target.position.x, iz - target.position.z) > target.radius + 2.5) return;
+
+  e.attackTimer = def.attack.interval;
+  const stick = def.attack.salvo ?? 3;
+  world.sfx.bombWhistle(world.pan(e.position.x));
+  for (let i = 0; i < stick; i++) {
+    world.timers.after(i * 0.15, () => {
+      if (!e.alive) return;
+      e.muzzleWorld(muzzle);
+      aim.copy(e.velocity).multiplyScalar(BOMB_DRIFT);
+      world.projectiles.fireBomb(muzzle, aim, def.attack.damage, def.attack.splash ?? 3.5);
+    });
   }
 }
 

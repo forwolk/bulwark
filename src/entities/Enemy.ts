@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { EnemyDef } from '../config/enemies';
-import { rand } from '../core/math';
+import { angleDelta, clamp, damp, rand } from '../core/math';
 import { createFlashableBodyMaterial, Materials } from '../render/Materials';
 import { createEnemyModel, type EnemyRig } from '../render/models/EnemyModels';
 import type { Damageable } from './Damageable';
@@ -36,6 +36,7 @@ export class Enemy {
   private flash = 0;
   private animPhase = rand(0, 10);
   private hoverPhase = rand(0, 10);
+  private lastYaw = 0;
 
   constructor(readonly def: EnemyDef, x: number, z: number, groundY: number) {
     this.hp = def.hp;
@@ -110,8 +111,19 @@ export class Enemy {
         }
         this.rig.body.rotation.z = -this.velocity.x * 0.03;
         break;
+      case 'glide': {
+        // Slow wing beats, and the whole airframe banks into its turns.
+        for (let i = 0; i < limbs.length; i++) {
+          const side = i === 0 ? -1 : 1;
+          limbs[i].rotation.z = side * (0.06 + Math.sin(this.hoverPhase * 2.4) * 0.08);
+        }
+        const turnRate = angleDelta(this.lastYaw, this.yaw) / Math.max(dt, 1e-3);
+        this.rig.root.rotation.z = damp(this.rig.root.rotation.z, clamp(-turnRate * 0.45, -0.6, 0.6), 4, dt);
+        break;
+      }
     }
 
+    this.lastYaw = this.yaw;
     // Knockback tilt sells the impact of the nova pulse.
     tmp.copy(this.knockback);
     this.rig.root.rotation.x = Math.min(0.5, tmp.length() * 0.03);
