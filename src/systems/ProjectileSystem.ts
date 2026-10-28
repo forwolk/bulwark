@@ -28,6 +28,16 @@ interface Projectile {
   targetDefense: Damageable | null;
   targetPoint: THREE.Vector3;
   trailTimer: number;
+  /** Knockback on hit (bullets) or on landing (shells). 0 = kind default. */
+  push: number;
+  /** Explosion scale for shells. 0 = kind default. */
+  blast: number;
+}
+
+export interface ShellOptions {
+  blast?: number;
+  push?: number;
+  size?: number;
 }
 
 export interface BulletParams {
@@ -41,6 +51,8 @@ export interface BulletParams {
   color: number;
   size: number;
   length: number;
+  /** Knockback applied to the enemy hit. */
+  push?: number;
 }
 
 const GRAVITY = 30;
@@ -77,7 +89,7 @@ export class ProjectileSystem {
     const p = this.pool.pop() ?? {
       kind, pos: new THREE.Vector3(), prev: new THREE.Vector3(), vel: new THREE.Vector3(), age: 0, life: 1,
       damage: 0, splash: 0, layer: 'both' as TargetLayer, color: new THREE.Color(), size: 0.2, length: 1,
-      targetEnemy: null, targetDefense: null, targetPoint: new THREE.Vector3(), trailTimer: 0,
+      targetEnemy: null, targetDefense: null, targetPoint: new THREE.Vector3(), trailTimer: 0, push: 0, blast: 0,
     };
     p.kind = kind;
     p.pos.copy(from);
@@ -87,6 +99,8 @@ export class ProjectileSystem {
     p.targetEnemy = null;
     p.targetDefense = null;
     p.splash = 0;
+    p.push = 0;
+    p.blast = 0;
     this.active.push(p);
     return p;
   }
@@ -102,10 +116,11 @@ export class ProjectileSystem {
     p.color.set(b.color).multiplyScalar(5);
     p.size = b.size;
     p.length = b.length;
+    p.push = b.push ?? 0;
   }
 
   /** Ballistic arc that lands on `to` after `flightTime` seconds. */
-  fireShell(from: THREE.Vector3, to: THREE.Vector3, flightTime: number, damage: number, splash: number): void {
+  fireShell(from: THREE.Vector3, to: THREE.Vector3, flightTime: number, damage: number, splash: number, opts: ShellOptions = {}): void {
     const p = this.acquire('shell', from);
     if (!p) return;
     this.setBallistic(p, from, to, flightTime);
@@ -113,8 +128,10 @@ export class ProjectileSystem {
     p.splash = splash;
     p.layer = 'ground';
     p.color.set(C.fireMid).multiplyScalar(5);
-    p.size = 0.38;
-    p.length = 0.7;
+    p.size = opts.size ?? 0.38;
+    p.length = p.size * 1.8;
+    p.blast = opts.blast ?? 0;
+    p.push = opts.push ?? 0;
   }
 
   fireMissile(from: THREE.Vector3, target: Enemy, damage: number, splash: number, launchDir: THREE.Vector3): void {
@@ -235,10 +252,10 @@ export class ProjectileSystem {
         const ground = level.heightAt(p.pos.x, p.pos.z);
         if (p.age >= p.life || p.pos.y <= ground) {
           p.pos.y = Math.max(p.pos.y, ground) + 0.2;
-          if (p.kind === 'shell') this.splashEnemies(p.pos, p.splash, p.damage, 'ground', BLAST_PUSH.shell);
+          if (p.kind === 'shell') this.splashEnemies(p.pos, p.splash, p.damage, 'ground', p.push || BLAST_PUSH.shell);
           else this.splashDefenses(p.pos, p.splash, p.damage);
-          const size = p.kind === 'shell' ? 1.5 : 2.2;
-          effects.explosion(p.pos, size, { debrisColor: effects.dustDarkColor, shake: p.kind === 'shell' ? 0.08 : 0.25, color: p.kind === 'shell' ? undefined : C.enemyPlasma });
+          const size = p.blast || (p.kind === 'shell' ? 1.5 : 2.2);
+          effects.explosion(p.pos, size, { debrisColor: effects.dustDarkColor, shake: p.kind === 'shell' ? size * 0.055 : 0.25, color: p.kind === 'shell' ? undefined : C.enemyPlasma });
           this.world.sfx.explosion(size, this.world.pan(p.pos.x));
           return true;
         }
@@ -332,6 +349,7 @@ export class ProjectileSystem {
   private hitEnemy(p: Projectile, e: Enemy): void {
     const { effects, enemies } = this.world;
     const point = e.aimPoint(tmpVec);
+    if (p.push > 0) enemies.push(e, e.position.x - p.vel.x, e.position.z - p.vel.z, p.push);
     enemies.damage(e, p.damage);
     if (p.splash > 0) {
       for (const other of enemies.inRadius(point.x, point.z, p.splash, e.flying ? 'air' : 'ground', [])) {

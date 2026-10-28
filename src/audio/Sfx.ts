@@ -161,6 +161,32 @@ export class Sfx {
     this.noise(ctx, 0.08, 0.15, 'bandpass', 900, 400, pan, 4);
   }
 
+  /** Core weapon swap: servo whine and a heavy lock-in clunk. */
+  weaponSwap(): void {
+    const ctx = this.gate('weaponSwap', 0.15);
+    if (!ctx) return;
+    this.tone(ctx, 'square', 180, 420, 0.3, 0.05);
+    this.noise(ctx, 0.12, 0.25, 'lowpass', 600, 120, 0, 2);
+    this.tone(ctx, 'triangle', 120, 60, 0.15, 0.15, 0, 0.35);
+  }
+
+  /** Scatter battery: a wide, bassy blast. */
+  scatter(pan: number): void {
+    const ctx = this.gate('scatter', 0.12);
+    if (!ctx) return;
+    this.noise(ctx, 0.3, 0.5, 'lowpass', 2400, 180, pan);
+    this.tone(ctx, 'square', 110, 45, 0.18, 0.14, pan);
+  }
+
+  /** Lance beam hum, re-triggered while the beam is held; pitch rises with charge. */
+  beam(pan: number, charge: number): void {
+    const ctx = this.gate('beam', 0.09);
+    if (!ctx) return;
+    const f = 220 + charge * 260;
+    this.tone(ctx, 'sawtooth', f, f * 1.04, 0.11, 0.03 + charge * 0.03, pan);
+    this.noise(ctx, 0.1, 0.03 + charge * 0.03, 'bandpass', 2600, 2400, pan, 3);
+  }
+
   /** Rail lance discharge: a sharp downward zip over a crackle. */
   rail(pan: number): void {
     const ctx = this.gate('rail', 0.08);

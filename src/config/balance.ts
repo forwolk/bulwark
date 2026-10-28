@@ -12,14 +12,7 @@ export const CORE = {
   radius: 3.2,
   muzzleHeight: 2.6,
   turnSpeed: 9, // rad/s
-  gun: {
-    damage: 24,
-    interval: 0.13,
-    speed: 85,
-    range: 52,
-    splash: 1.3,
-    spread: 0.025,
-  },
+  // Main gun modes live in config/coreWeapons.ts.
   missiles: {
     count: 6,
     cooldown: 9,

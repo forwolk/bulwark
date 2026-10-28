@@ -33,7 +33,8 @@ export class Screens {
 
     const how = el('div', 'howto', card);
     const lines: [string, string][] = [
-      ['Mouse · LMB', 'Aim and fire the core cannon'],
+      ['Mouse · LMB', 'Aim and fire the core gun'],
+      ['A S D F · Tab', 'Switch gun: autocannon, scatter, lance, siege'],
       ['RMB', 'Swarm missiles at cursor'],
       ['Space', 'Nova pulse: knockback blast'],
       ['1 – 5', 'Build turrets and barriers'],

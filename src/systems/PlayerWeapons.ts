@@ -1,22 +1,22 @@
 import * as THREE from 'three';
 import { CORE } from '../config/balance';
+import { CoreGun } from './CoreGun';
 import { PALETTE as C } from '../config/palette';
 import { rand } from '../core/math';
 import type { World } from '../core/World';
 import type { Enemy } from '../entities/Enemy';
 
-const muzzle = new THREE.Vector3();
-const facing = new THREE.Vector3();
-const dir = new THREE.Vector3();
 const pod = new THREE.Vector3();
 
-/** The core's main cannon (LMB), swarm missiles (RMB) and nova pulse (Space). */
+/** The core's main gun (LMB, switchable modes), swarm missiles (RMB) and nova pulse (Space). */
 export class PlayerWeapons {
-  private fireTimer = 0;
+  readonly gun: CoreGun;
   missileCooldown = 0;
   novaCooldown = 0;
 
-  constructor(private readonly world: World) {}
+  constructor(private readonly world: World) {
+    this.gun = new CoreGun(world);
+  }
 
   get missileReady(): number {
     return 1 - this.missileCooldown / this.world.upgrades.missileCooldown;
@@ -31,37 +31,13 @@ export class PlayerWeapons {
     if (!core.alive) return;
     if (this.world.hasAim) core.aimAt(this.world.aimPoint, dt);
 
-    this.fireTimer -= dt;
     this.missileCooldown = Math.max(0, this.missileCooldown - dt);
     this.novaCooldown = Math.max(0, this.novaCooldown - dt);
 
     const building = build.selected !== null;
-    if (input.isButtonDown(0) && !build.blocksFire && this.fireTimer <= 0) {
-      this.fireCannon();
-      this.fireTimer = this.world.upgrades.gunInterval;
-    }
+    this.gun.update(dt, input.isButtonDown(0) && !build.blocksFire);
     if (input.wasButtonPressed(2) && !building) this.launchMissiles();
     if (input.wasKeyPressed('Space')) this.novaPulse();
-  }
-
-  private fireCannon(): void {
-    const { core, projectiles, effects, sfx, upgrades, aimPoint } = this.world;
-    core.nextShot(muzzle, facing);
-    // Fly toward the cursor at chest height, with a little spread.
-    dir.set(aimPoint.x, aimPoint.y + 1.0, aimPoint.z).sub(muzzle);
-    if (dir.lengthSq() < 4) dir.copy(facing);
-    dir.normalize();
-    dir.x += rand(-CORE.gun.spread, CORE.gun.spread);
-    dir.z += rand(-CORE.gun.spread, CORE.gun.spread);
-    dir.normalize();
-    projectiles.fireBullet({
-      from: muzzle, dir, speed: CORE.gun.speed, range: CORE.gun.range,
-      damage: upgrades.gunDamage, splash: CORE.gun.splash, layer: 'both',
-      color: C.playerGlow, size: 0.24, length: 2.2,
-    });
-    effects.muzzleFlash(muzzle, facing, C.playerGlow, 1.1);
-    effects.shake(0.035);
-    sfx.cannon(this.world.pan(muzzle.x));
   }
 
   private launchMissiles(): void {
@@ -120,7 +96,7 @@ export class PlayerWeapons {
   }
 
   reset(): void {
-    this.fireTimer = 0;
+    this.gun.reset();
     this.missileCooldown = 0;
     this.novaCooldown = 0;
   }

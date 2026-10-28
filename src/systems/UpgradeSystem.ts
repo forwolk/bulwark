@@ -42,12 +42,14 @@ export class UpgradeSystem {
     return true;
   }
 
-  get gunDamage(): number {
-    return CORE.gun.damage * (1 + 0.25 * this.levels.damage);
+  /** Multiplies the damage of every core weapon mode. */
+  get gunDamageMultiplier(): number {
+    return 1 + 0.25 * this.levels.damage;
   }
 
-  get gunInterval(): number {
-    return CORE.gun.interval / (1 + 0.15 * this.levels.rate);
+  /** Multiplies the fire rate (and beam damage rate) of every core weapon mode. */
+  get gunRateMultiplier(): number {
+    return 1 + 0.15 * this.levels.rate;
   }
 
   get maxHp(): number {

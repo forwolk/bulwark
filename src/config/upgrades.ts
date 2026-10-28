@@ -11,13 +11,13 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
   damage: {
     id: 'damage',
     name: 'Shell Payload',
-    description: '+25% cannon damage',
+    description: '+25% core gun damage, every mode',
     costs: [150, 260, 400, 600],
   },
   rate: {
     id: 'rate',
     name: 'Autoloader',
-    description: '+15% cannon fire rate',
+    description: '+15% core gun fire rate, every mode',
     costs: [140, 240, 380, 560],
   },
   hull: {

@@ -34,7 +34,8 @@ export class Input {
       this.wheelDelta += Math.sign(e.deltaY);
     }, { passive: false });
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space') e.preventDefault();
+      // Space and Tab are game keys, never page scrolling or focus cycling.
+      if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
       if (!this.keysDown.has(e.code)) this.keysPressed.add(e.code);
       this.keysDown.add(e.code);
     });

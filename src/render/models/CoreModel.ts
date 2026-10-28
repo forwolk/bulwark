@@ -1,14 +1,113 @@
 import * as THREE from 'three';
 import { PALETTE as C } from '../../config/palette';
+import type { CoreWeaponId } from '../../config/coreWeapons';
 import { buildPart } from '../ModelBuilder';
+
+export interface WeaponMount {
+  /** Whole assembly; scaled down and up during weapon swaps. */
+  group: THREE.Group;
+  /** Recoiling slides. Each slides back along its own local Z; rest position is in userData.restZ. */
+  barrels: THREE.Group[];
+  muzzles: THREE.Object3D[];
+}
+
+/** A recoil slide at `z` inside `parent`, with a muzzle `length` ahead of it. */
+function slide(parent: THREE.Object3D, x: number, y: number, z: number, length: number): { barrel: THREE.Group; muzzle: THREE.Object3D } {
+  const barrel = new THREE.Group();
+  barrel.position.set(x, y, z);
+  barrel.userData.restZ = z;
+  const muzzle = new THREE.Object3D();
+  muzzle.position.set(0, 0, length);
+  barrel.add(muzzle);
+  parent.add(barrel);
+  return { barrel, muzzle };
+}
+
+/** Twin long barrels: the all-round default. */
+function autocannonMount(): WeaponMount {
+  const group = new THREE.Group();
+  const barrels: THREE.Group[] = [];
+  const muzzles: THREE.Object3D[] = [];
+  for (const side of [-1, 1]) {
+    const { barrel, muzzle } = slide(group, side * 0.62, 1.25, 1.3, 4.1);
+    barrel.add(buildPart('core-barrel', (b) => {
+      b.box(0.7, 0.7, 1.0, C.playerSteel, { p: [0, 0, 0.3] });
+      b.box(0.42, 0.42, 3.6, C.playerSteelDark, { p: [0, 0, 1.9] });
+      b.box(0.6, 0.6, 0.5, C.playerSteel, { p: [0, 0, 3.6] });
+      b.box(0.46, 0.46, 0.06, C.playerGlow, { p: [0, 0, 3.88], glow: true });
+      b.box(0.48, 0.1, 1.4, C.playerGlow, { p: [0, 0.22, 1.5], glow: true });
+    }));
+    barrels.push(barrel);
+    muzzles.push(muzzle);
+  }
+  return { group, barrels, muzzles };
+}
+
+/** Four stubby wide-bore barrels in a block, hazard-striped. */
+function scatterMount(): WeaponMount {
+  const group = new THREE.Group();
+  group.add(buildPart('core-scatter-housing', (b) => {
+    b.box(2, 1.5, 1.2, C.playerSteel, { p: [0, 1.25, 1.6] });
+    b.box(2.04, 0.2, 0.5, C.playerAccent, { p: [0, 2.05, 1.6] });
+    b.box(2.04, 0.2, 0.5, C.playerAccent, { p: [0, 0.45, 1.6] });
+  }));
+  const barrels: THREE.Group[] = [];
+  const muzzles: THREE.Object3D[] = [];
+  for (const [x, y] of [[-0.45, 1.6], [0.45, 1.6], [-0.45, 0.9], [0.45, 0.9]]) {
+    const { barrel, muzzle } = slide(group, x, y, 2.1, 1.9);
+    barrel.add(buildPart('core-scatter-barrel', (b) => {
+      b.box(0.52, 0.52, 1.6, C.playerSteelDark, { p: [0, 0, 0.8] });
+      b.box(0.64, 0.64, 0.3, C.playerSteel, { p: [0, 0, 1.6] });
+      b.box(0.4, 0.4, 0.05, C.playerAccent, { p: [0, 0, 1.77], glow: true });
+    }));
+    barrels.push(barrel);
+    muzzles.push(muzzle);
+  }
+  return { group, barrels, muzzles };
+}
+
+/** A single long emitter ringed with glowing focusing coils. */
+function lanceMount(): WeaponMount {
+  const group = new THREE.Group();
+  const { barrel, muzzle } = slide(group, 0, 1.3, 1.3, 5.2);
+  barrel.add(buildPart('core-lance', (b) => {
+    b.box(1.1, 1.0, 1.2, C.playerSteel, { p: [0, 0, 0.3] });
+    b.box(0.5, 0.5, 4.4, C.playerSteelDark, { p: [0, 0, 2.6] });
+    for (const z of [1.3, 2.2, 3.1, 4.0]) b.torus(0.42, 0.08, C.playerGlow, { p: [0, 0, z], glow: true }, 10);
+    for (const side of [-1, 1]) b.box(0.08, 0.7, 2.6, C.playerPlate, { p: [side * 0.38, 0, 2.4] });
+    b.octa(0.34, C.playerGlowHot, { p: [0, 0, 4.95], s: [1, 1, 1.7], glow: true });
+  }));
+  return { group, barrels: [barrel], muzzles: [muzzle] };
+}
+
+/** A heavy mortar tube tilted skyward on a trunnion block. */
+function siegeMount(): WeaponMount {
+  const group = new THREE.Group();
+  group.add(buildPart('core-siege-base', (b) => {
+    b.box(1.8, 1.0, 1.6, C.playerSteel, { p: [0, 1.0, 1.0] });
+    for (const side of [-1, 1]) b.box(0.3, 1.2, 0.9, C.playerSteelDark, { p: [side * 0.95, 1.4, 1.0] });
+    b.box(1.84, 0.18, 0.4, C.playerAccent, { p: [0, 0.6, 1.0] });
+  }));
+  const tilt = new THREE.Group();
+  tilt.position.set(0, 1.6, 1.0);
+  // Rotating -0.75 rad about X points the tube's +Z up and forward.
+  tilt.rotation.x = -0.75;
+  group.add(tilt);
+  const { barrel, muzzle } = slide(tilt, 0, 0, 0, 3.3);
+  barrel.add(buildPart('core-siege-tube', (b) => {
+    b.cyl(0.62, 0.7, 3.2, 8, C.playerSteelDark, { p: [0, 0, 1.4], r: [Math.PI / 2, 0, 0] });
+    for (const z of [0.3, 1.5, 2.7]) b.cyl(0.76, 0.76, 0.22, 8, C.playerSteel, { p: [0, 0, z], r: [Math.PI / 2, 0, 0] });
+    b.torus(0.62, 0.06, C.playerGlow, { p: [0, 0, 3.0], glow: true }, 12);
+  }));
+  return { group, barrels: [barrel], muzzles: [muzzle] };
+}
 
 export interface CoreRig {
   root: THREE.Group;
   /** Yaw pivot for the whole gun house. */
   head: THREE.Group;
-  /** Recoiling barrel groups (local +Z is forward). */
-  barrels: THREE.Group[];
-  muzzles: THREE.Object3D[];
+  /** One barrel assembly per weapon mode; only the active one is shown. */
+  weapons: Record<CoreWeaponId, WeaponMount>;
   /** Missile pod launch points. */
   pods: THREE.Object3D[];
   orb: THREE.Group;
@@ -60,24 +159,15 @@ export function createCoreModel(): CoreRig {
     }
   }));
 
-  const barrels: THREE.Group[] = [];
-  const muzzles: THREE.Object3D[] = [];
-  for (const side of [-1, 1]) {
-    const barrel = new THREE.Group();
-    barrel.position.set(side * 0.62, 1.25, 1.3);
-    barrel.add(buildPart('core-barrel', (b) => {
-      b.box(0.7, 0.7, 1.0, C.playerSteel, { p: [0, 0, 0.3] });
-      b.box(0.42, 0.42, 3.6, C.playerSteelDark, { p: [0, 0, 1.9] });
-      b.box(0.6, 0.6, 0.5, C.playerSteel, { p: [0, 0, 3.6] });
-      b.box(0.46, 0.46, 0.06, C.playerGlow, { p: [0, 0, 3.88], glow: true });
-      b.box(0.48, 0.1, 1.4, C.playerGlow, { p: [0, 0.22, 1.5], glow: true });
-    }));
-    const muzzle = new THREE.Object3D();
-    muzzle.position.set(0, 0, 4.1);
-    barrel.add(muzzle);
-    head.add(barrel);
-    barrels.push(barrel);
-    muzzles.push(muzzle);
+  const weapons: Record<CoreWeaponId, WeaponMount> = {
+    autocannon: autocannonMount(),
+    scatter: scatterMount(),
+    lance: lanceMount(),
+    siege: siegeMount(),
+  };
+  for (const id of Object.keys(weapons) as CoreWeaponId[]) {
+    head.add(weapons[id].group);
+    weapons[id].group.visible = id === 'autocannon';
   }
 
   const pods: THREE.Object3D[] = [];
@@ -98,5 +188,5 @@ export function createCoreModel(): CoreRig {
   ring.add(buildPart('core-ring', (b) => b.torus(0.95, 0.06, C.playerGlow, { r: [Math.PI / 2, 0, 0], glow: true }, 14)));
   head.add(ring);
 
-  return { root, head, barrels, muzzles, pods, orb, ring };
+  return { root, head, weapons, pods, orb, ring };
 }

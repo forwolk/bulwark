@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CORE } from '../config/balance';
+import type { CoreWeaponId } from '../config/coreWeapons';
 import { PALETTE as C } from '../config/palette';
 import { rand, rotateTowards, yawTo } from '../core/math';
 import { createCoreModel, type CoreRig } from '../render/models/CoreModel';
@@ -19,7 +20,8 @@ export class Core implements Damageable {
 
   readonly rig: CoreRig;
   private yaw = 0;
-  private readonly recoil = [0, 0];
+  /** Weapon assembly currently shown (and fired from). */
+  private weapon: CoreWeaponId = 'autocannon';
   private barrelIndex = 0;
   private time = 0;
   private smokeTimer = 0;
@@ -49,6 +51,7 @@ export class Core implements Damageable {
     this.maxHp = maxHp;
     this.hp = maxHp;
     this.yaw = 0;
+    this.setWeaponPose('autocannon', null, 1);
     this.rig.root.visible = true;
     this.glowLight.visible = true;
   }
@@ -63,14 +66,40 @@ export class Core implements Damageable {
     this.yaw = rotateTowards(this.yaw, target, CORE.turnSpeed * dt);
   }
 
-  /** Picks the next barrel, kicks its recoil and writes the muzzle position and facing. */
+  /** Picks the next barrel of the active weapon, kicks its recoil and writes the muzzle position and facing. */
   nextShot(outPos: THREE.Vector3, outDir: THREE.Vector3): void {
-    const i = this.barrelIndex;
-    this.barrelIndex = (this.barrelIndex + 1) % this.rig.barrels.length;
-    this.recoil[i] = 1;
+    const mount = this.rig.weapons[this.weapon];
+    const i = this.barrelIndex++ % mount.barrels.length;
+    mount.barrels[i].userData.recoil = 1;
     this.rig.root.updateMatrixWorld(true);
-    this.rig.muzzles[i].getWorldPosition(outPos);
+    mount.muzzles[i].getWorldPosition(outPos);
     outDir.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+  }
+
+  /** Muzzle of the active weapon's first barrel, without firing. */
+  muzzle(out: THREE.Vector3): THREE.Vector3 {
+    this.rig.root.updateMatrixWorld(true);
+    return this.rig.weapons[this.weapon].muzzles[0].getWorldPosition(out);
+  }
+
+  /**
+   * Weapon swap animation: the outgoing assembly retracts during the first half,
+   * the incoming one extends during the second. `to` null means no swap in progress.
+   */
+  setWeaponPose(from: CoreWeaponId, to: CoreWeaponId | null, t: number): void {
+    for (const [id, mount] of Object.entries(this.rig.weapons) as [CoreWeaponId, (typeof this.rig.weapons)[CoreWeaponId]][]) {
+      let scale = 0;
+      if (to === null) scale = id === from ? 1 : 0;
+      else if (id === from && t < 0.5) scale = 1 - t * 2;
+      else if (id === to && t >= 0.5) scale = (t - 0.5) * 2;
+      mount.group.visible = scale > 0.001;
+      mount.group.scale.set(1, Math.max(0.001, scale), Math.max(0.001, scale));
+    }
+    const active = to !== null && t >= 0.5 ? to : from;
+    if (active !== this.weapon) {
+      this.weapon = active;
+      this.barrelIndex = 0;
+    }
   }
 
   podPosition(index: number, out: THREE.Vector3): THREE.Vector3 {
@@ -81,9 +110,10 @@ export class Core implements Damageable {
   update(dt: number, effects: Effects): void {
     this.time += dt;
     this.rig.head.rotation.y = this.yaw;
-    for (let i = 0; i < this.rig.barrels.length; i++) {
-      this.recoil[i] = Math.max(0, this.recoil[i] - dt * 7);
-      this.rig.barrels[i].position.z = 1.3 - this.recoil[i] * this.recoil[i] * RECOIL_DISTANCE;
+    for (const barrel of this.rig.weapons[this.weapon].barrels) {
+      const r = Math.max(0, (barrel.userData.recoil ?? 0) - dt * 7);
+      barrel.userData.recoil = r;
+      barrel.position.z = barrel.userData.restZ - r * r * RECOIL_DISTANCE;
     }
     this.rig.orb.position.y = 3.3 + Math.sin(this.time * 2) * 0.12;
     this.rig.orb.rotation.y += dt * 1.5;
