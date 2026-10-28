@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Materials } from './Materials';
 
@@ -26,6 +27,11 @@ const tmpEuler = new THREE.Euler();
 const tmpPos = new THREE.Vector3();
 const tmpScale = new THREE.Vector3();
 const tmpColor = new THREE.Color();
+const UP = new THREE.Vector3(0, 1, 0);
+const tmpA = new THREE.Vector3();
+const tmpB = new THREE.Vector3();
+const tmpQ = new THREE.Quaternion();
+const tmpE = new THREE.Euler();
 
 /**
  * Assembles low-poly models from primitives. Every primitive is baked (transform + vertex colour)
@@ -92,6 +98,57 @@ export class ModelBuilder {
 
   torus(r: number, tube: number, color: THREE.ColorRepresentation, o?: PartOptions, segments = 10): this {
     return this.add(new THREE.TorusGeometry(r, tube, 4, segments), color, o);
+  }
+
+  /** Tapered cylinder from point `a` to point `b`: limb segments, spars, barrels. */
+  strut(a: Vec3Tuple, b: Vec3Tuple, rA: number, rB: number, segments: number, color: THREE.ColorRepresentation, glow = false): this {
+    tmpA.set(...a);
+    tmpB.set(...b);
+    const dir = tmpB.clone().sub(tmpA);
+    const len = dir.length();
+    tmpQ.setFromUnitVectors(UP, dir.normalize());
+    tmpE.setFromQuaternion(tmpQ);
+    const mid = tmpA.add(tmpB).multiplyScalar(0.5);
+    // CylinderGeometry's first radius is the +Y end, which points at `b`.
+    return this.add(new THREE.CylinderGeometry(rB, rA, len, segments), color, {
+      p: [mid.x, mid.y, mid.z], r: [tmpE.x, tmpE.y, tmpE.z], glow,
+    });
+  }
+
+  /** Convex shape through the given points: claws, armour plates, fuselages. */
+  hull(points: readonly Vec3Tuple[], color: THREE.ColorRepresentation, o?: PartOptions): this {
+    return this.add(new ConvexGeometry(points.map(([x, y, z]) => new THREE.Vector3(x, y, z))), color, o);
+  }
+
+  /** Box with chamfered edges; the bevels catch light and read as machined armour. */
+  bevelBox(w: number, h: number, d: number, bevel: number, color: THREE.ColorRepresentation, o?: PartOptions): this {
+    const b = Math.min(bevel, w / 2 - 1e-3, h / 2 - 1e-3, d / 2 - 1e-3);
+    const pts: Vec3Tuple[] = [];
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const x = (sx * w) / 2;
+          const y = (sy * h) / 2;
+          const z = (sz * d) / 2;
+          pts.push([x - sx * b, y, z], [x, y - sy * b, z], [x, y, z - sz * b]);
+        }
+      }
+    }
+    return this.hull(pts, color, o);
+  }
+
+  /**
+   * Block whose top face is shorter than its base, sloping down toward +Z: glacis plates,
+   * feet, carapace segments. `taper` is the fraction of depth the top loses at the front.
+   */
+  wedge(w: number, h: number, d: number, taper: number, color: THREE.ColorRepresentation, o?: PartOptions, topWidth = 1): this {
+    const hw = w / 2;
+    const tw = (w * topWidth) / 2;
+    const hd = d / 2;
+    return this.hull([
+      [-hw, 0, -hd], [hw, 0, -hd], [-hw, 0, hd], [hw, 0, hd],
+      [-tw, h, -hd], [tw, h, -hd], [-tw, h, hd - taper * d], [tw, h, hd - taper * d],
+    ], color, o);
   }
 
   build(): BuiltGeometry {

@@ -96,12 +96,17 @@ export class Ally implements Damageable {
 
     switch (rig.motion) {
       case 'hover':
-        rig.body.position.y = (this.def.kind === 'rampart' ? 0.5 : 0.7) + Math.sin(p * 2) * 0.06;
+        rig.body.position.y = rig.bodyY + Math.sin(p * 2) * 0.06;
         rig.body.rotation.x = this.moving ? 0.08 : 0;
         break;
       case 'walk':
-        for (let i = 0; i < rig.limbs.length; i++) rig.limbs[i].rotation.x = this.moving ? Math.sin(p + i * Math.PI) * 0.45 : 0;
-        rig.body.position.y = 2 + Math.abs(Math.sin(p)) * (this.moving ? 0.12 : 0.03) - this.recoil * 0.1;
+        for (let i = 0; i < rig.limbs.length; i++) {
+          const phase = p + i * Math.PI;
+          rig.limbs[i].rotation.x = this.moving ? Math.sin(phase) * 0.45 : 0;
+          const knee = rig.joints[i];
+          if (knee) knee.rotation.x = this.moving ? -Math.max(0, Math.cos(phase)) * 0.55 : 0;
+        }
+        rig.body.position.y = rig.bodyY + Math.abs(Math.sin(p)) * (this.moving ? 0.12 : 0.03) - this.recoil * 0.1;
         break;
       case 'fly': {
         // Bank into turns.

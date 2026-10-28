@@ -11,7 +11,10 @@ export const PALETTE = {
   // Hostile swarm: chitin and molten orange/red cores.
   enemyShell: 0x2a1d22,
   enemyShellLight: 0x5a3a35,
-  enemyBone: 0xb79b7c,
+  enemyBone: 0xc9b39a,
+  /** Maroon armour plates layered over the black chitin. */
+  enemyPlate: 0x5a1c2a,
+  enemyPlateLight: 0x7c2a3a,
   enemyGlow: 0xff4b1f,
   enemyGlowHot: 0xffb04a,
   enemyPlasma: 0xff2e7e,

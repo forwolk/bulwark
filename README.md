@@ -105,6 +105,15 @@ To add a level:
 
 The nav grid and flow field are built from the biome automatically. In dev builds, a gate with no path to the core logs a warning.
 
+### Unit models
+All units are built from primitives in `render/models/`. Beyond boxes and cylinders, `ModelBuilder` offers:
+- `bevelBox`: chamfered armour.
+- `wedge`: tapered plates.
+- `hull`: any convex shape, for claws, fuselages and membranes.
+- `strut`: a tapered segment between two points, for limbs, spars and barrels.
+
+Walkers have hip and knee pivots, crawlers move in alternating tripods, and turrets track independently. The designs follow two Scenario concept sheets, one per faction. A generated 3D model was tested and rejected: it was 3.4 MB, a single mesh that couldn't animate, with texture detail invisible at game zoom.
+
 ### Rendering notes
 - Models are built from primitives by `ModelBuilder` and merged into one lit mesh and one glow mesh per part. Colour is stored per vertex, so the whole game uses a handful of shared materials.
 - The scene renders into a half-float target. Glow colours go above 1.0 and drive `UnrealBloomPass`. `OutputPass` then applies ACES tone mapping.

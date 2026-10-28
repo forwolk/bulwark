@@ -94,13 +94,20 @@ export class Enemy {
     switch (this.rig.limbMode) {
       case 'swing':
         for (let i = 0; i < limbs.length; i++) {
-          limbs[i].rotation.x = this.moving ? Math.sin(p + i * Math.PI) * 0.45 : 0;
+          const phase = p + i * Math.PI;
+          limbs[i].rotation.x = this.moving ? Math.sin(phase) * 0.45 : 0;
+          // Knees fold while the leg swings forward, straighten as it plants.
+          const knee = this.rig.joints[i];
+          if (knee) knee.rotation.x = this.moving ? -Math.max(0, Math.cos(phase)) * 0.6 : 0;
         }
-        this.rig.body.position.y = (this.def.kind === 'strider' ? 2.3 : 3.2) + Math.abs(Math.sin(p)) * (this.moving ? 0.15 : 0.04);
+        this.rig.body.position.y = this.rig.bodyY + Math.abs(Math.sin(p)) * (this.moving ? 0.15 : 0.04);
         break;
       case 'scuttle':
         for (let i = 0; i < limbs.length; i++) {
-          limbs[i].rotation.y = this.moving ? Math.sin(p * 1.6 + i * Math.PI) * 0.25 : 0;
+          const phase = p * 1.6 + i * Math.PI;
+          limbs[i].rotation.y = this.moving ? Math.sin(phase) * 0.25 : 0;
+          // Each tripod lifts as it swings forward.
+          limbs[i].position.y = this.moving ? Math.max(0, Math.cos(phase)) * 0.12 : 0;
         }
         this.rig.body.position.y = Math.abs(Math.sin(p * 1.6)) * (this.moving ? 0.08 : 0.02);
         break;
