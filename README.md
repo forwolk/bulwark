@@ -103,6 +103,12 @@ To add a level:
 1. Write a `Biome` in `levels/biomes/`. It provides height, hazard zones and ground colours, plus a `decorate()` pass. That pass places props from `levels/props.ts`, blocks cells, bakes contact shadows, adds glow pools and registers animations.
 2. Add a `LevelDef` to `levels/catalog.ts` with a theme (lights, fog, motes, dust) and the gates where ground units enter.
 
+The terrain has real relief. `battlefieldRelief()` in `levels/biomes/shapes.ts` keeps the core's pad flat, gently rolls the build area and adds knolls beyond it, with every slope walkable. Structures sit on the ground and can't be built where their footprint is too steep. The terrain mesh darkens hollows and brightens crests based on curvature.
+
+Ground colour is baked into a 1024² texture, about four texels per unit (`world/GroundTexture.ts`). That keeps path edges, grass patches and sand ripples crisp. The bake samples a coarse lattice first and only evaluates every texel where the colour actually changes. The helpers in `levels/biomes/ground.ts` (`patches`, `flecks`, `crisp`, `edgeJitter`) give the Taur-style flat colour zones with clean edges. Most of the ground detail comes from small props scattered in natural drifts by `levels/clutter.ts`: pebbles, grass tufts, branches, stumps and flagstones. The build area only gets low clutter, so structures stay readable.
+
+Water (`world/features/Water.ts`) is a stylised shader on Phong lighting. `WaterField.ts` bakes the depth below the surface and the distance to the nearest shore or rock into a small texture. The shader reads it per pixel to draw see-through shallows over the lakebed, darker deep water, a crisp waterline, and foam bands that roll in toward the shores and around rocks. A cheap sky reflection uses Fresnel. The hollow's streams use the `swirl` option, so their foam runs along the ravines.
+
 The nav grid and flow field are built from the biome automatically. In dev builds, a gate with no path to the core logs a warning.
 
 ### Unit models

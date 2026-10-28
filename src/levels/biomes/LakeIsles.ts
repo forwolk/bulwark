@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { lerp, smoothstep, TAU } from '../../core/math';
-import { Water } from '../../world/features/Water';
+import { Water, type WaterObstacle } from '../../world/features/Water';
 import { fbm } from '../../world/Noise';
 import { scatterClutter } from '../clutter';
 import { boulder, branch, bush, crystal, fern, flowers, grassTuft, log, pebbles, pine, roundTree, stump } from '../props';
@@ -49,6 +49,8 @@ const tmp2 = new THREE.Color();
  * anything knocked into the water sinks.
  */
 export class LakeIsles implements Biome {
+  private readonly rocks: WaterObstacle[] = [];
+
   islandRadius(theta: number): number {
     return 28.5 + (polarNoise(theta, 11, 1.6) - 0.5) * 9;
   }
@@ -130,17 +132,24 @@ export class LakeIsles implements Biome {
   }
 
   decorate(ctx: DecorContext): void {
-    const water = new Water({
-      level: WATER_LEVEL, shallow: 0x5e8b8a, deep: 0x23394a, depthRange: 2.6, foam: 0xf4f8f6,
-      sky: [0x8fb4d9, 0xe4eef4, 0x6f8f6a],
-    }, ctx.heightAt);
-    ctx.group.add(water.group);
-    ctx.animate((_dt, time) => water.update(time));
-
     this.forest(ctx);
     this.island(ctx);
     this.shores(ctx);
     this.islets(ctx);
+
+    // After the rocks, so foam can wrap around the ones standing in the water.
+    const water = new Water({
+      level: WATER_LEVEL, shallow: 0x5e8b8a, deep: 0x2a4458, depthRange: 2.6, foam: 0xf4f8f6,
+      sky: [0x8fb4d9, 0xe4eef4, 0x6f8f6a], obstacles: this.rocks,
+    }, ctx.heightAt);
+    ctx.group.add(water.group);
+    ctx.animate((_dt, time) => water.update(time));
+  }
+
+  /** A boulder at the water's edge, remembered so the water can foam around it. */
+  private waterRock(ctx: DecorContext, x: number, y: number, z: number, size: number): void {
+    boulder(ctx, x, y, z, size, undefined, false);
+    this.rocks.push({ x, z, radius: size });
   }
 
   private nearBridge(thetaRad: number, radius: number, margin: number): boolean {
@@ -242,14 +251,14 @@ export class LakeIsles implements Biome {
       const ir = this.islandRadius(theta);
       if (this.nearBridge(theta, ir, 1) || !clustered(theta, 81) || rnd() < 0.2) continue;
       const r = ir + 0.6 + rnd() * 1.4;
-      boulder(ctx, Math.sin(theta) * r, WATER_LEVEL - 0.4, Math.cos(theta) * r, 0.7 + rnd() * 1.2, undefined, false);
+      this.waterRock(ctx, Math.sin(theta) * r, WATER_LEVEL - 0.4, Math.cos(theta) * r, 0.7 + rnd() * 1.2);
     }
     for (let k = 0; k < 120; k++) {
       const theta = (k / 120) * TAU + rnd() * 0.05;
       const or = this.shoreRadius(theta);
       if (this.nearBridge(theta, or, 1) || !clustered(theta, 83) || rnd() < 0.2) continue;
       const r = or - 1 - rnd() * 1.5;
-      boulder(ctx, Math.sin(theta) * r, WATER_LEVEL - 0.4, Math.cos(theta) * r, 0.8 + rnd() * 1.5, undefined, false);
+      this.waterRock(ctx, Math.sin(theta) * r, WATER_LEVEL - 0.4, Math.cos(theta) * r, 0.8 + rnd() * 1.5);
     }
     for (const a of ISLE_BRIDGES) {
       const ux = Math.sin(a / DEG);
@@ -258,7 +267,7 @@ export class LakeIsles implements Biome {
         for (const side of [-1, 1]) {
           if (rnd() < 0.65) continue;
           const l = side * (BRIDGE_HALF + 0.6 + rnd());
-          boulder(ctx, ux * s + uz * l, WATER_LEVEL - 0.2, uz * s - ux * l, 0.6 + rnd() * 0.9, undefined, false);
+          this.waterRock(ctx, ux * s + uz * l, WATER_LEVEL - 0.2, uz * s - ux * l, 0.6 + rnd() * 0.9);
         }
       }
     }
@@ -270,7 +279,7 @@ export class LakeIsles implements Biome {
       crystal(ctx, i.x, 0.3, i.z, 1.1, i.crystal);
       for (let k = 0; k < 4; k++) {
         const a = rnd() * TAU;
-        boulder(ctx, i.x + Math.sin(a) * i.size * 0.8, -0.3, i.z + Math.cos(a) * i.size * 0.8, 0.6 + rnd() * 0.8, undefined, false);
+        this.waterRock(ctx, i.x + Math.sin(a) * i.size * 0.8, -0.3, i.z + Math.cos(a) * i.size * 0.8, 0.6 + rnd() * 0.8);
       }
       bush(ctx, i.x + 1.2, 0.3, i.z - 0.8, 0.9);
     }

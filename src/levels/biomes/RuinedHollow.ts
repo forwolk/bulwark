@@ -162,6 +162,8 @@ export class RuinedHollow implements Biome {
     const water = new Water({
       level: RAVINE_WATER, shallow: 0x5b8a86, deep: 0x2a4652, depthRange: 1.2, foam: 0xf0f6f2,
       sky: [0x8fb4d9, 0xe4eef4, 0x6f8f6a],
+      // The ravines curve around the core, so the streams run around it too.
+      swirl: 1.6, laps: 0.35,
     }, ctx.heightAt);
     ctx.group.add(water.group);
     ctx.animate((_dt, time) => water.update(time));
