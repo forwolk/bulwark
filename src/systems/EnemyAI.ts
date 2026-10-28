@@ -164,9 +164,20 @@ function followGround(e: Enemy, dt: number, world: World): void {
   }
 }
 
+/** Nearest structure or squad member within aggro range, else the core. */
 function chooseTarget(e: Enemy, world: World): Damageable {
-  const structure = world.structures.nearest(e.position.x, e.position.z, e.def.aggroRange + e.def.radius);
-  return structure ?? world.core;
+  const { x, z } = e.position;
+  const reach = e.def.aggroRange + e.def.radius;
+  const structure = world.structures.nearest(x, z, reach);
+  // Only shooters can hit flying squads.
+  const canHitAir = e.def.attack.style === 'bolt' || e.def.attack.style === 'laser';
+  const ally = world.squads.nearest(x, z, reach, canHitAir);
+  if (structure && ally) {
+    const ds = Math.hypot(structure.position.x - x, structure.position.z - z);
+    const da = Math.hypot(ally.position.x - x, ally.position.z - z);
+    return ds <= da ? structure : ally;
+  }
+  return structure ?? ally ?? world.core;
 }
 
 function attack(e: Enemy, target: Damageable, world: World): void {

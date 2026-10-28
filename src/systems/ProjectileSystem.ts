@@ -3,6 +3,7 @@ import { PALETTE as C } from '../config/palette';
 import type { TargetLayer } from '../config/structures';
 import { segmentPointDistSqXZ } from '../core/math';
 import type { World } from '../core/World';
+import type { Ally } from '../entities/Ally';
 import type { Damageable } from '../entities/Damageable';
 import type { Enemy } from '../entities/Enemy';
 import type { Structure } from '../entities/Structure';
@@ -54,6 +55,7 @@ const tmpDir = new THREE.Vector3();
 const tmpVec = new THREE.Vector3();
 const enemyBuffer: Enemy[] = [];
 const structureBuffer: Structure[] = [];
+const allyBuffer: Ally[] = [];
 
 /** All projectiles, player and enemy, simulated in one pool and drawn as a single instanced mesh. */
 export class ProjectileSystem {
@@ -353,6 +355,7 @@ export class ProjectileSystem {
 
   private splashDefenses(pos: THREE.Vector3, radius: number, damage: number): void {
     for (const s of this.world.structures.inRadius(pos.x, pos.z, radius, structureBuffer)) this.world.damageDefense(s, damage);
+    for (const a of this.world.squads.inRadius(pos.x, pos.z, radius, allyBuffer)) this.world.damageDefense(a, damage);
     const core = this.world.core;
     if (Math.hypot(core.position.x - pos.x, core.position.z - pos.z) <= radius + core.radius) this.world.damageDefense(core, damage);
   }

@@ -89,6 +89,7 @@ export class Game {
     const bonus = ECONOMY.waveBonusBase + ECONOMY.waveBonusPerWave * wave;
     world.economy.earn(bonus);
     world.structures.repairAll(ECONOMY.interWaveRepair);
+    world.squads.repairAll(ECONOMY.interWaveRepair);
     world.core.hp = Math.min(world.core.maxHp, world.core.hp + (world.core.maxHp - world.core.hp) * ECONOMY.interWaveRepair);
     world.events.emit('coreHealth', { hp: world.core.hp, maxHp: world.core.maxHp });
     world.events.emit('waveCleared', { wave, bonus });

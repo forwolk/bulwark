@@ -2,6 +2,7 @@ import type { World } from '../core/World';
 import { BuildBar } from './BuildBar';
 import { Hud } from './Hud';
 import { Screens, type ScreenActions } from './Screens';
+import { SquadBar } from './SquadBar';
 import { UpgradePanel } from './UpgradePanel';
 import { WorldOverlay } from './WorldOverlay';
 
@@ -15,6 +16,7 @@ export class UI {
   readonly screens: Screens;
   private readonly buildBar: BuildBar;
   private readonly upgrades: UpgradePanel;
+  private readonly squadBar: SquadBar;
   private readonly overlay: WorldOverlay;
 
   constructor(root: HTMLElement, private readonly world: World, actions: UIActions) {
@@ -24,6 +26,7 @@ export class UI {
     this.hud = new Hud(root, world, actions.onLaunch);
     this.buildBar = new BuildBar(root, world);
     this.upgrades = new UpgradePanel(root, world);
+    this.squadBar = new SquadBar(root, world);
     this.screens = new Screens(root, actions, world.level.def.id);
 
     world.events.on('phase', ({ phase }) => {
@@ -31,12 +34,14 @@ export class UI {
       this.hud.setVisible(playing);
       this.buildBar.setVisible(playing);
       this.upgrades.setVisible(playing);
+      this.squadBar.setVisible(playing);
       if (playing) this.screens.hideAll();
       if (phase === 'build' && world.waves.index < 0) this.overlay.clear();
     });
     this.hud.setVisible(false);
     this.buildBar.setVisible(false);
     this.upgrades.setVisible(false);
+    this.squadBar.setVisible(false);
   }
 
   update(dt: number): void {
@@ -47,6 +52,7 @@ export class UI {
     this.hud.update(dt);
     this.buildBar.update();
     this.upgrades.update();
+    this.squadBar.update();
     this.overlay.update(dt);
   }
 }

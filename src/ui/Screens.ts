@@ -37,6 +37,7 @@ export class Screens {
       ['RMB', 'Swarm missiles at cursor'],
       ['Space', 'Nova pulse: knockback blast'],
       ['1 – 5', 'Build turrets and barriers'],
+      ['Q W E R', 'Deploy squads'],
       ['X', 'Sell hovered structure'],
       ['Wheel · P · M', 'Zoom · pause · mute'],
     ];

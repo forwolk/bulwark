@@ -9,6 +9,7 @@ import { BuildSystem } from '../systems/BuildSystem';
 import { Economy } from '../systems/Economy';
 import { EnemyManager } from '../systems/EnemyManager';
 import { PlayerWeapons } from '../systems/PlayerWeapons';
+import { SquadManager } from '../systems/SquadManager';
 import { ProjectileSystem } from '../systems/ProjectileSystem';
 import { StructureManager } from '../systems/StructureManager';
 import { UpgradeSystem } from '../systems/UpgradeSystem';
@@ -51,6 +52,7 @@ export class World {
   readonly upgrades: UpgradeSystem;
   readonly enemies: EnemyManager;
   readonly structures: StructureManager;
+  readonly squads: SquadManager;
   readonly projectiles: ProjectileSystem;
   readonly weapons: PlayerWeapons;
   readonly waves: WaveManager;
@@ -75,6 +77,7 @@ export class World {
     this.upgrades = new UpgradeSystem(this.events, this.economy, this.core);
     this.enemies = new EnemyManager(this);
     this.structures = new StructureManager(this);
+    this.squads = new SquadManager(this);
     this.projectiles = new ProjectileSystem(this);
     this.weapons = new PlayerWeapons(this);
     this.waves = new WaveManager(this);
@@ -96,6 +99,7 @@ export class World {
     if (id === this.level.def.id) return;
     this.enemies.clear();
     this.structures.clear();
+    this.squads.clear();
     this.projectiles.clear();
     this.effects.clear();
     this.level.dispose();
@@ -139,6 +143,7 @@ export class World {
     }
     this.enemies.update(dt);
     this.structures.update(dt);
+    this.squads.update(dt);
     this.projectiles.update(dt);
     this.core.update(dt, this.effects);
     this.effects.update(dt);
@@ -156,6 +161,7 @@ export class World {
     this.timers.clear();
     this.enemies.clear();
     this.structures.clear();
+    this.squads.clear();
     this.projectiles.clear();
     this.effects.clear();
     this.upgrades.reset();

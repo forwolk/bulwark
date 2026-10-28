@@ -10,6 +10,16 @@ There are three battlefields, picked on the title screen. Each has its own look 
 | **Sunscar Dunes**: pale desert flats walled in by sandstone mesas | 4 canyons | Quicksand pits |
 | **Mossgate Hollow**: grassy stone terraces with standing stones | 4 dirt ramps down from the rim | Ravines with a stream |
 
+### Squads
+Squads are allied units you deploy from the core for scrap, using the left-hand panel or Q W E R. Each type has its own cooldown, and at most 6 squads can be in the field at once. Each squad takes a guard post on the emptiest entry lane and engages enemies within a leash of that post. Enemies attack squads too, and squads are repaired between waves with the structures.
+
+| Squad | Units | Role |
+| --- | --- | --- |
+| Sentinels | 6 hover drones | Cheap rapid blasters, ground + air |
+| Lancers | 3 walkers | Rail beams that punch through armour |
+| Rampart | 1 hover tank | Damage sponge with splash cannon |
+| Kestrels | 3 interceptors | Circle their post, homing missiles at ground + air |
+
 Mortar shells, missiles and the nova pulse knock enemies back. An enemy shoved into a hazard is lost, and you still get its scrap. Flyers ignore terrain.
 
 All art, effects and audio are generated in code. There are no asset files.
@@ -32,6 +42,7 @@ Requires Node 16+. Vite is pinned to v4 for Node 16 compatibility. Once you're o
 | RMB | Swarm missiles at enemies near the cursor |
 | Space | Nova pulse: damage plus knockback around the core |
 | 1–5 | Select Repeater / Flak / Mortar / Arc Coil / Barrier |
+| Q W E R | Deploy a squad: Sentinels / Lancers / Rampart / Kestrels |
 | Shift + click | Keep placing the same structure |
 | X | Sell the hovered structure |
 | Enter | Launch next wave |
@@ -43,9 +54,10 @@ Requires Node 16+. Vite is pinned to v4 for Node 16 compatibility. Once you're o
 src/
   config/     Pure data: enemy, structure, wave, upgrade and balance tables, colour palette
   core/       Game loop + phase machine (Game), system container (World), input, events, math
-  entities/   Core, Enemy, Structure: state + visuals for a single object
+  entities/   Core, Enemy, Structure, Ally, Squad: state + visuals for a single object
   systems/    Behaviour across many objects: EnemyAI, TurretWeapons, ProjectileSystem,
-              PlayerWeapons, WaveManager, BuildSystem, Economy, UpgradeSystem
+              PlayerWeapons, WaveManager, BuildSystem, Economy, UpgradeSystem,
+              SquadManager + AllyAI (player squads)
   render/     Renderer (HDR + bloom), CameraRig, ModelBuilder, procedural models/
   vfx/        Instanced low-poly particles, glow sprites, light flashes, scorch decals,
               and Effects (named recipes like explosion, shockwave, lightning)

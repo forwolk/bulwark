@@ -67,6 +67,11 @@ export class WorldOverlay {
       for (const s of structures.all) {
         if (s.hp < s.maxHp && this.placeBar(used, tmp.set(s.position.x, 2.8, s.position.z), s.hp / s.maxHp, 38, false)) used++;
       }
+      for (const a of this.world.squads.all) {
+        if (!a.alive || a.hp >= a.maxHp) continue;
+        tmp.set(a.position.x, a.aimHeight + 1.2 + a.radius * 0.5, a.position.z);
+        if (this.placeBar(used, tmp, a.hp / a.maxHp, 24 + a.radius * 16, false)) used++;
+      }
       for (const e of enemies.all) {
         if (!e.def.showHealthBar || e.hp >= e.def.hp) continue;
         const big = e.def.kind === 'leviathan';

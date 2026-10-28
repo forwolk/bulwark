@@ -161,6 +161,23 @@ export class Sfx {
     this.noise(ctx, 0.08, 0.15, 'bandpass', 900, 400, pan, 4);
   }
 
+  /** Rail lance discharge: a sharp downward zip over a crackle. */
+  rail(pan: number): void {
+    const ctx = this.gate('rail', 0.08);
+    if (!ctx) return;
+    this.tone(ctx, 'sawtooth', 1800, 160, 0.28, 0.08, pan);
+    this.noise(ctx, 0.2, 0.15, 'highpass', 3000, 900, pan);
+  }
+
+  /** Squad warping in: a quick rising chord. */
+  deploy(): void {
+    const ctx = this.gate('deploy', 0.2);
+    if (!ctx) return;
+    this.tone(ctx, 'triangle', 330, 660, 0.18, 0.12);
+    this.tone(ctx, 'triangle', 495, 990, 0.18, 0.08, 0, 0.08);
+    this.noise(ctx, 0.25, 0.08, 'bandpass', 800, 3000, 0, 2);
+  }
+
   /** Falling scream into a chasm, or a deep glug into brine. */
   hazardFall(liquid: boolean, pan: number): void {
     const ctx = this.gate('hazardFall', 0.12);

@@ -276,6 +276,23 @@ export class Effects {
     this.impact(to, color, 0.8);
   }
 
+  /** Heavy straight rail shot: a bright beam that lingers a moment, sparks along its length. */
+  railBeam(from: THREE.Vector3, to: THREE.Vector3, color: number): void {
+    const dir = new THREE.Vector3().subVectors(to, from);
+    const len = dir.length();
+    dir.multiplyScalar(1 / len);
+    const mid = from.clone().lerp(to, 0.5);
+    this.sparks.spawn({ x: mid.x, y: mid.y, z: mid.z, life: 0.22, size: 0.34, sizeEnd: 0.02, color: hdr(color, 6), colorEnd: BLACK, dir, length: len });
+    this.sparks.spawn({ x: mid.x, y: mid.y, z: mid.z, life: 0.1, size: 0.12, sizeEnd: 0, color: FIRE_CORE, colorEnd: BLACK, dir, length: len });
+    for (let i = 0; i < 8; i++) {
+      v.copy(from).lerp(to, Math.random());
+      this.sparks.spawn({ x: v.x, y: v.y, z: v.z, vx: rand(-1, 1), vy: rand(1, 3), vz: rand(-1, 1), life: rand(0.2, 0.4), size: 0.08, sizeEnd: 0, color: hdr(color, 4), colorEnd: BLACK, stretch: 0.02, drag: 2 });
+    }
+    this.glows.spawn(from, 2.4, 1.4, hdr(color, 0.7), 0.15);
+    this.glows.spawn(to, 3, 1.6, hdr(color, 0.8), 0.2);
+    this.impact(to, color, 1.4);
+  }
+
   /** Thin instant beam (wasp lasers). */
   laser(from: THREE.Vector3, to: THREE.Vector3, color: number): void {
     const dir = new THREE.Vector3().subVectors(to, from);

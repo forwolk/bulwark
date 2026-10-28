@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { EnemyKind } from '../config/enemies';
+import type { SquadKind } from '../config/squads';
 import type { StructureKind } from '../config/structures';
 import type { UpgradeId } from '../config/upgrades';
 
@@ -18,5 +19,7 @@ export type GameEvents = {
   structureLost: { kind: StructureKind };
   buildSelection: { kind: StructureKind | null };
   upgradePurchased: { id: UpgradeId; level: number };
+  squadDeployed: { kind: SquadKind };
+  squadLost: { kind: SquadKind };
   message: { text: string; tone: MessageTone };
 };
