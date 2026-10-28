@@ -53,6 +53,12 @@ export class Renderer {
     return this.webgl.domElement;
   }
 
+  /** Per-level bloom: bright daylight ground needs a higher threshold than a dark level. */
+  setBloom(threshold: number, strength: number): void {
+    this.bloom.threshold = threshold;
+    this.bloom.strength = strength;
+  }
+
   /** Device pixels per CSS pixel the scene is currently rendered at. */
   get resolution(): number {
     return this.pixelRatio;

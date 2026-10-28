@@ -3,6 +3,8 @@ import { CORE } from '../config/balance';
 import { Materials } from '../render/Materials';
 import { ModelBuilder } from '../render/ModelBuilder';
 import { AmbientMotes } from '../world/AmbientMotes';
+import { GlowPools, type PoolSpec } from '../world/features/GlowPools';
+import { OcclusionMap } from '../world/features/OcclusionMap';
 import { mulberry32 } from '../world/Noise';
 import { createTerrainMesh } from '../world/TerrainMesh';
 import { FlowField } from './FlowField';
@@ -22,14 +24,16 @@ export class Level {
   readonly flow: FlowField;
   private readonly animators: ((dt: number, time: number) => void)[] = [];
   private readonly motes: AmbientMotes[] = [];
+  private readonly pools: GlowPools | null = null;
   private time = 0;
 
   constructor(readonly def: LevelDef) {
     const biome = def.createBiome();
     this.nav = new NavGrid(biome);
-    this.root.add(createTerrainMesh(biome));
 
     const builder = new ModelBuilder();
+    const occlusion = new OcclusionMap();
+    const poolSpecs: PoolSpec[] = [];
     const ctx: DecorContext = {
       builder,
       group: this.root,
@@ -38,16 +42,27 @@ export class Level {
       isWalkable: (x, z) => this.nav.walkable(x, z),
       block: (x, z, r) => this.nav.block(x, z, r),
       animate: (fn) => this.animators.push(fn),
+      occlude: (x, z, r, strength) => occlusion.add(x, z, r, strength),
+      glowPool: (x, z, radius, color, intensity = 0.5) => poolSpecs.push({ x, y: this.nav.heightAt(x, z), z, radius, color, intensity }),
     };
     biome.decorate(ctx);
+    // Terrain comes after the props so it can bake their contact shadows into its colours.
+    this.root.add(createTerrainMesh(biome, (x, z) => occlusion.at(x, z)));
+
     const built = builder.build();
     if (built.body) {
-      const mesh = new THREE.Mesh(built.body, Materials.body);
+      // Matte, faceted nature material: rocks and foliage shouldn't share the units' metallic sheen.
+      const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, metalness: 0 });
+      const mesh = new THREE.Mesh(built.body, material);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.root.add(mesh);
     }
     if (built.glow) this.root.add(new THREE.Mesh(built.glow, Materials.glow));
+    if (poolSpecs.length > 0) {
+      this.pools = new GlowPools(poolSpecs);
+      this.root.add(this.pools.mesh);
+    }
 
     // The core's own footprint is not walkable, so the goal is the ring just around it.
     this.flow = new FlowField(this.nav, 0, 0, CORE.radius + 2.5);
@@ -134,6 +149,7 @@ export class Level {
   update(dt: number, camera: THREE.PerspectiveCamera, focus: THREE.Vector3, bufferHeight: number): void {
     this.time += dt;
     for (const fn of this.animators) fn(dt, this.time);
+    this.pools?.update(this.time);
     for (const m of this.motes) m.update(this.time, camera, focus, bufferHeight);
   }
 

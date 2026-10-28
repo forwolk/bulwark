@@ -6,9 +6,9 @@ There are three battlefields, picked on the title screen. Each has its own look 
 
 | Level | Ground units enter by | Hazard |
 | --- | --- | --- |
-| **Basalt Rift**: a hexagonal-basalt plateau over a violet-mist chasm | 3 column bridges | The chasm |
-| **Saltglass Expanse**: cracked salt flats ringed by striped mesas | 4 canyons | Brine sinkholes |
-| **Hollowmere Crater**: a terraced crater of slate, moss and crystal | 4 ramps down from the rim | Glowing fissures |
+| **Mirrorlake Isles**: a green island in a lake ringed by pine woods | 3 land bridges | The lake |
+| **Sunscar Dunes**: pale desert flats walled in by sandstone mesas | 4 canyons | Quicksand pits |
+| **Mossgate Hollow**: grassy stone terraces with standing stones | 4 dirt ramps down from the rim | Ravines with a stream |
 
 Mortar shells, missiles and the nova pulse knock enemies back. An enemy shoved into a hazard is lost, and you still get its scrap. Flyers ignore terrain.
 
@@ -51,8 +51,9 @@ src/
               and Effects (named recipes like explosion, shockwave, lightning)
   levels/     Level catalog (themes, gates), runtime Level, NavGrid + FlowField pathfinding,
               and one Biome per battlefield (height, hazards, colouring, set dressing)
-  world/      Terrain mesh builder, ambient motes, mist and sky-reflection features,
-              lighting rig + build-zone overlay (Arena)
+  levels/props.ts  Low-poly nature props (trees, rocks, cacti, standing stones, crystals...)
+  world/      Smooth terrain mesh builder, water + shore foam, quicksand, glow pools, baked
+              contact shadows, ambient motes, lighting rig + build-zone overlay (Arena)
   audio/      WebAudio-synthesized sound effects
   ui/         DOM HUD, build bar, upgrade shop, world-anchored overlays, screens
 ```
@@ -63,7 +64,7 @@ Tuning the game usually only touches `src/config/`. To add an enemy:
 3. Use the enemy in `config/waves.ts`.
 
 To add a level:
-1. Write a `Biome` in `levels/biomes/`. It provides height, hazard zones, face colours and a `decorate()` pass that can block cells and register animations.
+1. Write a `Biome` in `levels/biomes/`. It provides height, hazard zones and ground colours, plus a `decorate()` pass. That pass places props from `levels/props.ts`, blocks cells, bakes contact shadows, adds glow pools and registers animations.
 2. Add a `LevelDef` to `levels/catalog.ts` with a theme (lights, fog, motes, dust) and the gates where ground units enter.
 
 The nav grid and flow field are built from the biome automatically. In dev builds, a gate with no path to the core logs a warning.

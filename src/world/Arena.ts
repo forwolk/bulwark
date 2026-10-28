@@ -59,8 +59,8 @@ export class Arena {
 
   private addLandingPad(): void {
     const b = new ModelBuilder();
-    b.cyl(7.5, 7.8, 0.4, 8, 0x3b3c44, { p: [0, -0.1, 0] });
-    b.cyl(6.2, 6.2, 0.4, 8, 0x464852, { p: [0, -0.02, 0] });
+    b.cyl(7.5, 7.8, 0.4, 8, 0x6c737c, { p: [0, -0.1, 0] });
+    b.cyl(6.2, 6.2, 0.4, 8, 0x8a929b, { p: [0, -0.02, 0] });
     for (let i = 0; i < 8; i++) {
       const a = (i * TAU) / 8 + TAU / 16;
       b.box(2.4, 0.04, 0.12, C.playerGlow, { p: [Math.sin(a) * 6.95, 0.13, Math.cos(a) * 6.95], r: [0, a, 0], glow: true });

@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import type { ModelBuilder } from '../render/ModelBuilder';
 
-export type LevelId = 'basalt' | 'salt' | 'crater';
+export type LevelId = 'isles' | 'dunes' | 'hollow';
 
 /** Where ground enemies enter the map. Angle in degrees, 0 = +Z (bottom of the screen). */
 export interface GateDef {
@@ -32,6 +32,8 @@ export interface LevelTheme {
   hemisphere: { sky: number; ground: number; intensity: number };
   sun: { color: number; intensity: number; position: [number, number, number] };
   exposure: number;
+  /** Bright daylight ground needs a higher threshold so only real glows bloom. */
+  bloom: { threshold: number; strength: number };
   /** Colours of dust and debris kicked up from this ground. */
   dust: number;
   dustDark: number;
@@ -66,6 +68,10 @@ export interface DecorContext {
   block(x: number, z: number, radius: number): void;
   /** Registers a per-frame animation (game time). */
   animate(fn: (dt: number, time: number) => void): void;
+  /** Darkens the ground around a prop: a baked contact shadow. */
+  occlude(x: number, z: number, radius: number, strength?: number): void;
+  /** Soft coloured light on the ground, e.g. under a glowing crystal. */
+  glowPool(x: number, z: number, radius: number, color: number, intensity?: number): void;
 }
 
 /** Shape, colouring and dressing of one level. */
@@ -74,7 +80,7 @@ export interface Biome {
   height(x: number, z: number): number;
   /** Chasm or liquid: enemies knocked in here are lost. */
   isHazard(x: number, z: number): boolean;
-  /** Colour of a terrain face. `slope` is 0 on flat ground, 1 on a vertical wall. */
+  /** Colour of the terrain at a vertex. `slope` is 0 on flat ground, 1 on a vertical wall. */
   color(x: number, z: number, h: number, slope: number, out: THREE.Color): void;
   decorate(ctx: DecorContext): void;
 }
